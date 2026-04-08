@@ -240,27 +240,31 @@ class GameScene extends Phaser.Scene {
     }
 
     createTouchControls() {
-        // 가이드 UI (UI 카메라에 연결)
-        const gameWidth = 800;
-        const gameHeight = 600;
+        // 터치 영역에 맞춘 가이드 UI
+        // 실제 영역: 0~25% = 좌, 25~50% = 우, 50~100% = 점프
+        const W = 800;
+        const H = 600;
+        const btnY = H - 50;
 
-        // 왼쪽 영역 UI (이동)
-        const leftBg = this.add.rectangle(80, gameHeight - 60, 160, 80, 0xffffff, 0.08);
-        const leftArrow = this.add.text(40, gameHeight - 60, '◀', { fontSize: '28px', color: '#ffffff' })
-            .setOrigin(0.5).setAlpha(0.4);
-        const rightArrow = this.add.text(120, gameHeight - 60, '▶', { fontSize: '28px', color: '#ffffff' })
-            .setOrigin(0.5).setAlpha(0.4);
+        // 왼쪽 이동 (0~25% 영역 중앙 = 100)
+        const leftArrow = this.add.text(100, btnY, '◀', { fontSize: '32px', color: '#ffffff' })
+            .setOrigin(0.5).setAlpha(0.3);
 
-        // 오른쪽 영역 UI (점프)
-        const jumpBg = this.add.rectangle(gameWidth - 60, gameHeight - 60, 100, 80, 0xffffff, 0.08);
-        const jumpArrow = this.add.text(gameWidth - 60, gameHeight - 60, '▲', { fontSize: '28px', color: '#ffffff' })
-            .setOrigin(0.5).setAlpha(0.4);
+        // 오른쪽 이동 (25~50% 영역 중앙 = 300)
+        const rightArrow = this.add.text(300, btnY, '▶', { fontSize: '32px', color: '#ffffff' })
+            .setOrigin(0.5).setAlpha(0.3);
 
-        // 터치 UI를 UI 레이어에 추가
-        const touchElements = [leftBg, leftArrow, rightArrow, jumpBg, jumpArrow];
+        // 점프 (50~100% 영역 우측 = 700)
+        const jumpArrow = this.add.text(700, btnY, '▲', { fontSize: '32px', color: '#ffffff' })
+            .setOrigin(0.5).setAlpha(0.3);
+
+        // 영역 구분선 (반투명)
+        const divider1 = this.add.rectangle(W * 0.25, H / 2, 1, H, 0xffffff, 0.05);
+        const divider2 = this.add.rectangle(W * 0.5, H / 2, 1, H, 0xffffff, 0.1);
+
+        // UI 레이어에 추가
+        const touchElements = [leftArrow, rightArrow, jumpArrow, divider1, divider2];
         this.uiLayer.add(touchElements);
-
-        // 메인 카메라에서 숨기기
         touchElements.forEach(el => this.cameras.main.ignore(el));
     }
 
