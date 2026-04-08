@@ -4,7 +4,7 @@ const MAP_HEIGHT = 1200;
 
 // 대시 설정
 const DASH_DISTANCE = 300;
-const DASH_SPEED = 900;
+const DASH_SPEED = 1200;
 const DASH_COOLDOWN = 2000;
 
 // 조작감 설정
