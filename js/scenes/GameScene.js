@@ -52,6 +52,13 @@ class GameScene extends Phaser.Scene {
             strokeThickness: 4
         }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(100);
 
+        // 버전 표시
+        this.add.text(784, 16, 'v0.0.1', {
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            color: '#666666'
+        }).setOrigin(1, 0).setScrollFactor(0).setDepth(100);
+
         // 아이템 카운터 UI
         this.itemText = this.add.text(16, 16, '🔑 0 / 5', {
             fontSize: '22px',
