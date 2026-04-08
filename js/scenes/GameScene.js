@@ -2,6 +2,11 @@
 const MAP_WIDTH = 4000;
 const MAP_HEIGHT = 1200;
 
+// 대시 설정
+const DASH_DISTANCE = 200;
+const DASH_SPEED = 800;
+const DASH_COOLDOWN = 2000; // 2초 쿨타임
+
 class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
@@ -12,7 +17,7 @@ class GameScene extends Phaser.Scene {
         this.cameras.main.setBackgroundColor('#16213e');
 
         // 멀티터치 활성화
-        this.input.addPointer(2);
+        this.input.addPointer(3);
 
         // 플랫폼 그룹
         this.platforms = this.physics.add.staticGroup();
@@ -29,6 +34,12 @@ class GameScene extends Phaser.Scene {
         this.player = this.physics.add.sprite(100, MAP_HEIGHT - 80, 'player');
         this.player.setCollideWorldBounds(true);
         this.player.setBounce(0.1);
+
+        // 대시 상태
+        this.isDashing = false;
+        this.dashCooldownReady = true;
+        this.lastDirection = 1; // 1 = 오른쪽, -1 = 왼쪽
+        this.dashTime = 0;
 
         // 플레이어-플랫폼 충돌
         this.physics.add.collider(this.player, this.platforms);
@@ -53,6 +64,7 @@ class GameScene extends Phaser.Scene {
 
         // 키보드 입력
         this.cursors = this.input.keyboard.createCursorKeys();
+        this.dashKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
         // 카메라 설정 - 플레이어 따라가기
         this.cameras.main.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
@@ -64,7 +76,7 @@ class GameScene extends Phaser.Scene {
         this.uiCamera = this.cameras.add(0, 0, 800, 600);
         this.uiCamera.setScroll(0, 0);
 
-        // 메인 카메라에서 UI 무시, UI 카메라에서 게임 오브젝트 무시
+        // UI 레이어
         this.uiLayer = this.add.container(0, 0);
 
         // 타이머
@@ -77,7 +89,7 @@ class GameScene extends Phaser.Scene {
         }).setOrigin(0.5, 0);
 
         // 버전 표시
-        const versionText = this.add.text(784, 16, 'v0.0.1', {
+        const versionText = this.add.text(784, 16, 'v0.0.2', {
             fontSize: '14px',
             fontFamily: 'monospace',
             color: '#666666'
@@ -101,7 +113,6 @@ class GameScene extends Phaser.Scene {
         this.cameras.main.ignore(this.itemText);
 
         // UI 카메라는 게임 오브젝트 무시 (UI만 렌더링)
-        // 플랫폼, 아이템, 플레이어 모두 UI 카메라에서 제외
         this.platforms.getChildren().forEach(p => this.uiCamera.ignore(p));
         this.items.getChildren().forEach(i => this.uiCamera.ignore(i));
         this.uiCamera.ignore(this.player);
@@ -119,14 +130,11 @@ class GameScene extends Phaser.Scene {
         this.addPlatform(400, MAP_HEIGHT - 200, 150, 20, 0x3a506b);
 
         // ===== 지하 동굴 영역 (500~1200) =====
-        // 천장처럼 보이는 플랫폼
         this.addPlatform(500, MAP_HEIGHT - 400, 700, 20, 0x2d4059);
-        // 동굴 내부 플랫폼
         this.addPlatform(550, MAP_HEIGHT - 150, 120, 20, 0x3a506b);
         this.addPlatform(750, MAP_HEIGHT - 220, 100, 20, 0x3a506b);
         this.addPlatform(900, MAP_HEIGHT - 130, 150, 20, 0x3a506b);
         this.addPlatform(1050, MAP_HEIGHT - 250, 130, 20, 0x3a506b);
-        // 동굴 위쪽으로 올라가는 길
         this.addPlatform(600, MAP_HEIGHT - 500, 120, 20, 0x3a506b);
         this.addPlatform(800, MAP_HEIGHT - 580, 100, 20, 0x3a506b);
 
@@ -181,11 +189,11 @@ class GameScene extends Phaser.Scene {
     createItems() {
         // 5개의 키 아이템 - 맵 곳곳에 숨김 (탐색해야 발견)
         const itemPositions = [
-            { x: 770, y: MAP_HEIGHT - 250 },    // 동굴 내부
-            { x: 820, y: MAP_HEIGHT - 610 },    // 동굴 위 높은 곳
-            { x: 1660, y: MAP_HEIGHT - 760 },   // 절벽 꼭대기
-            { x: 2460, y: MAP_HEIGHT - 780 },   // 부유 섬 높은 곳
-            { x: 3410, y: MAP_HEIGHT - 730 },   // 최종 영역 높은 곳
+            { x: 770, y: MAP_HEIGHT - 250 },
+            { x: 820, y: MAP_HEIGHT - 610 },
+            { x: 1660, y: MAP_HEIGHT - 760 },
+            { x: 2460, y: MAP_HEIGHT - 780 },
+            { x: 3410, y: MAP_HEIGHT - 730 },
         ];
 
         // 아이템 텍스처 생성
@@ -201,7 +209,6 @@ class GameScene extends Phaser.Scene {
             const item = this.items.create(pos.x, pos.y, 'item');
             item.setDisplaySize(24, 24);
             item.refreshBody();
-            // 반짝이는 효과
             this.tweens.add({
                 targets: item,
                 alpha: 0.5,
@@ -209,7 +216,6 @@ class GameScene extends Phaser.Scene {
                 yoyo: true,
                 repeat: -1
             });
-            // UI 카메라에서 아이템 숨기기
             if (this.uiCamera) this.uiCamera.ignore(item);
         });
     }
@@ -240,32 +246,95 @@ class GameScene extends Phaser.Scene {
     }
 
     createTouchControls() {
-        // 터치 영역에 맞춘 가이드 UI
-        // 실제 영역: 0~25% = 좌, 25~50% = 우, 50~100% = 점프
+        // C안: 왼쪽 절반 = 이동(위치로 좌/우), 오른쪽에 대시+점프 버튼
+        // 터치 영역: 0~50% = 이동, 50~75% = 대시, 75~100% = 점프
         const W = 800;
         const H = 600;
         const btnY = H - 50;
 
-        // 왼쪽 이동 (0~25% 영역 중앙 = 100)
-        const leftArrow = this.add.text(100, btnY, '◀', { fontSize: '32px', color: '#ffffff' })
+        // 왼쪽 이동 영역 (0~50%)
+        const leftArrow = this.add.text(130, btnY, '◀', { fontSize: '32px', color: '#ffffff' })
+            .setOrigin(0.5).setAlpha(0.3);
+        const rightArrow = this.add.text(270, btnY, '▶', { fontSize: '32px', color: '#ffffff' })
             .setOrigin(0.5).setAlpha(0.3);
 
-        // 오른쪽 이동 (25~50% 영역 중앙 = 300)
-        const rightArrow = this.add.text(300, btnY, '▶', { fontSize: '32px', color: '#ffffff' })
+        // 대시 버튼 (50~75%)
+        const dashBtn = this.add.text(500, btnY, '💨', { fontSize: '32px' })
             .setOrigin(0.5).setAlpha(0.3);
 
-        // 점프 (50~100% 영역 우측 = 700)
+        // 대시 쿨타임 표시 (대시 버튼 아래)
+        this.dashCooldownBar = this.add.rectangle(500, btnY + 28, 60, 6, 0x00ffaa, 0.8)
+            .setOrigin(0.5);
+        this.dashCooldownText = this.add.text(500, btnY - 28, '', {
+            fontSize: '12px',
+            fontFamily: 'monospace',
+            color: '#ff4444'
+        }).setOrigin(0.5).setAlpha(0);
+
+        // 점프 버튼 (75~100%)
         const jumpArrow = this.add.text(700, btnY, '▲', { fontSize: '32px', color: '#ffffff' })
             .setOrigin(0.5).setAlpha(0.3);
 
-        // 영역 구분선 (반투명)
-        const divider1 = this.add.rectangle(W * 0.25, H / 2, 1, H, 0xffffff, 0.05);
-        const divider2 = this.add.rectangle(W * 0.5, H / 2, 1, H, 0xffffff, 0.1);
+        // 영역 구분선
+        const divider1 = this.add.rectangle(W * 0.5, H / 2, 1, H, 0xffffff, 0.1);
+        const divider2 = this.add.rectangle(W * 0.75, H / 2, 1, H, 0xffffff, 0.05);
 
         // UI 레이어에 추가
-        const touchElements = [leftArrow, rightArrow, jumpArrow, divider1, divider2];
+        const touchElements = [leftArrow, rightArrow, dashBtn, this.dashCooldownBar,
+            this.dashCooldownText, jumpArrow, divider1, divider2];
         this.uiLayer.add(touchElements);
         touchElements.forEach(el => this.cameras.main.ignore(el));
+    }
+
+    doDash() {
+        if (!this.dashCooldownReady || this.isDashing) return;
+
+        this.isDashing = true;
+        this.dashCooldownReady = false;
+        this.dashTime = DASH_DISTANCE / DASH_SPEED * 1000;
+
+        // 대시 방향 (현재 이동 방향 또는 마지막 방향)
+        const dir = this.lastDirection;
+
+        // 대시 중 중력 무시
+        this.player.body.allowGravity = false;
+        this.player.setVelocityY(0);
+        this.player.setVelocityX(DASH_SPEED * dir);
+
+        // 대시 이펙트 (잔상)
+        this.player.setAlpha(0.6);
+        const afterImage = this.add.rectangle(
+            this.player.x, this.player.y, 32, 48, 0x4fc3f7, 0.4
+        );
+        if (this.uiCamera) this.uiCamera.ignore(afterImage);
+        this.tweens.add({
+            targets: afterImage,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => afterImage.destroy()
+        });
+
+        // 대시 종료
+        this.time.delayedCall(this.dashTime, () => {
+            this.isDashing = false;
+            this.player.body.allowGravity = true;
+            this.player.setAlpha(1);
+        });
+
+        // 쿨타임 시작
+        this.dashCooldownBar.setScale(0, 1);
+        this.dashCooldownText.setText('쿨타임').setAlpha(1);
+
+        this.tweens.add({
+            targets: this.dashCooldownBar,
+            scaleX: 1,
+            duration: DASH_COOLDOWN,
+            ease: 'Linear',
+            onComplete: () => {
+                this.dashCooldownReady = true;
+                this.dashCooldownText.setAlpha(0);
+            }
+        });
     }
 
     checkTouchInput() {
@@ -275,8 +344,8 @@ class GameScene extends Phaser.Scene {
         this.touchLeft = false;
         this.touchRight = false;
         this.touchJump = false;
+        this.touchDash = false;
 
-        // pointer1~pointer5까지 모든 포인터 확인
         const pointers = [
             this.input.pointer1,
             this.input.pointer2,
@@ -296,7 +365,11 @@ class GameScene extends Phaser.Scene {
                         this.touchRight = true;
                     }
                 }
-                // 오른쪽 절반 = 점프
+                // 50~75% = 대시
+                else if (screenX < gameWidth * 0.75) {
+                    this.touchDash = true;
+                }
+                // 75~100% = 점프
                 else {
                     this.touchJump = true;
                 }
@@ -314,7 +387,6 @@ class GameScene extends Phaser.Scene {
             this.timerText.setColor('#ffaa00');
         }
 
-        // 타이머 종료 → 보스 등장
         if (this.timeLeft <= 0) {
             this.timerEvent.remove();
             this.scene.start('BossScene');
@@ -335,11 +407,16 @@ class GameScene extends Phaser.Scene {
         const jumpSpeed = -500;
         const onGround = this.player.body.touching.down;
 
+        // 대시 중에는 이동 입력 무시
+        if (this.isDashing) return;
+
         // 좌/우 이동
         if (this.cursors.left.isDown || this.touchLeft) {
             this.player.setVelocityX(-speed);
+            this.lastDirection = -1;
         } else if (this.cursors.right.isDown || this.touchRight) {
             this.player.setVelocityX(speed);
+            this.lastDirection = 1;
         } else {
             this.player.setVelocityX(0);
         }
@@ -347,6 +424,11 @@ class GameScene extends Phaser.Scene {
         // 점프 (땅에 있을 때만)
         if ((this.cursors.up.isDown || this.touchJump) && onGround) {
             this.player.setVelocityY(jumpSpeed);
+        }
+
+        // 대시 (Shift키 또는 터치)
+        if (Phaser.Input.Keyboard.JustDown(this.dashKey) || this.touchDash) {
+            this.doDash();
         }
     }
 }
