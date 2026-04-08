@@ -209,22 +209,12 @@ class GameScene extends Phaser.Scene {
     }
 
     createTouchControls() {
-        // 화면을 좌/우 두 영역으로 나눔
-        // 왼쪽 절반: 이동 (좌/우)
-        // 오른쪽 절반: 점프
+        // 가이드 UI만 표시 (실제 입력은 update에서 포인터 직접 체크)
         const gameWidth = this.scale.width;
         const gameHeight = this.scale.height;
 
-        // 터치 상태
-        this.touchLeft = false;
-        this.touchRight = false;
-        this.touchJump = false;
-
-        // 활성 포인터 추적용
-        this.activePointers = {};
-
         // 왼쪽 영역 UI (이동)
-        const leftZoneBg = this.add.rectangle(80, gameHeight - 60, 160, 80, 0xffffff, 0.08)
+        this.add.rectangle(80, gameHeight - 60, 160, 80, 0xffffff, 0.08)
             .setScrollFactor(0).setDepth(199);
         this.add.text(40, gameHeight - 60, '◀', { fontSize: '28px', color: '#ffffff' })
             .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.4);
@@ -232,65 +222,45 @@ class GameScene extends Phaser.Scene {
             .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.4);
 
         // 오른쪽 영역 UI (점프)
-        const rightZoneBg = this.add.rectangle(gameWidth - 60, gameHeight - 60, 100, 80, 0xffffff, 0.08)
+        this.add.rectangle(gameWidth - 60, gameHeight - 60, 100, 80, 0xffffff, 0.08)
             .setScrollFactor(0).setDepth(199);
         this.add.text(gameWidth - 60, gameHeight - 60, '▲', { fontSize: '28px', color: '#ffffff' })
             .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.4);
-
-        // 포인터 이벤트로 멀티터치 처리
-        this.input.on('pointerdown', (pointer) => {
-            this.handleTouch(pointer, true);
-        });
-        this.input.on('pointermove', (pointer) => {
-            if (pointer.isDown) {
-                this.handleTouch(pointer, true);
-            }
-        });
-        this.input.on('pointerup', (pointer) => {
-            this.handleTouch(pointer, false);
-        });
     }
 
-    handleTouch(pointer, isDown) {
+    checkTouchInput() {
+        // 매 프레임 모든 활성 포인터를 직접 체크
         const gameWidth = this.scale.width;
-        // 화면 좌표 기준으로 계산 (카메라 영향 없이)
-        const screenX = pointer.x;
-        const pointerId = pointer.id;
 
-        if (!isDown) {
-            // 포인터 떼면 해당 포인터의 상태 제거
-            const prev = this.activePointers[pointerId];
-            if (prev) {
-                if (prev === 'left') this.touchLeft = false;
-                else if (prev === 'right') this.touchRight = false;
-                else if (prev === 'jump') this.touchJump = false;
+        this.touchLeft = false;
+        this.touchRight = false;
+        this.touchJump = false;
+
+        // pointer1~pointer5까지 모든 포인터 확인
+        const pointers = [
+            this.input.pointer1,
+            this.input.pointer2,
+            this.input.pointer3,
+            this.input.pointer4,
+            this.input.pointer5
+        ];
+
+        for (const pointer of pointers) {
+            if (pointer && pointer.isDown) {
+                const screenX = pointer.x;
+                // 왼쪽 절반 = 이동
+                if (screenX < gameWidth * 0.5) {
+                    if (screenX < gameWidth * 0.25) {
+                        this.touchLeft = true;
+                    } else {
+                        this.touchRight = true;
+                    }
+                }
+                // 오른쪽 절반 = 점프
+                else {
+                    this.touchJump = true;
+                }
             }
-            delete this.activePointers[pointerId];
-            return;
-        }
-
-        // 이전 상태 제거
-        const prev = this.activePointers[pointerId];
-        if (prev) {
-            if (prev === 'left') this.touchLeft = false;
-            else if (prev === 'right') this.touchRight = false;
-            else if (prev === 'jump') this.touchJump = false;
-        }
-
-        // 왼쪽 절반 = 이동 영역
-        if (screenX < gameWidth * 0.5) {
-            if (screenX < gameWidth * 0.25) {
-                this.touchLeft = true;
-                this.activePointers[pointerId] = 'left';
-            } else {
-                this.touchRight = true;
-                this.activePointers[pointerId] = 'right';
-            }
-        }
-        // 오른쪽 절반 = 점프
-        else {
-            this.touchJump = true;
-            this.activePointers[pointerId] = 'jump';
         }
     }
 
@@ -318,6 +288,9 @@ class GameScene extends Phaser.Scene {
     }
 
     update() {
+        // 매 프레임 터치 상태 갱신
+        this.checkTouchInput();
+
         const speed = 250;
         const jumpSpeed = -500;
         const onGround = this.player.body.touching.down;
