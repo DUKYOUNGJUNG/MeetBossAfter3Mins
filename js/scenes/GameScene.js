@@ -1,3 +1,7 @@
+// 맵 크기 상수
+const MAP_WIDTH = 4000;
+const MAP_HEIGHT = 1200;
+
 class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
@@ -7,22 +11,22 @@ class GameScene extends Phaser.Scene {
         // 배경
         this.cameras.main.setBackgroundColor('#16213e');
 
+        // 멀티터치 활성화
+        this.input.addPointer(2);
+
         // 플랫폼 그룹
         this.platforms = this.physics.add.staticGroup();
         this.createMap();
 
-        // 플레이어
-        this.player = this.physics.add.sprite(100, 500, null);
-        this.player.setDisplaySize(32, 48);
-        this.player.body.setSize(32, 48);
-        this.player.setTint(0x4fc3f7);
-        // 플레이어에 사각형 텍스처 생성
+        // 플레이어 텍스처 생성
         const playerGraphics = this.add.graphics();
         playerGraphics.fillStyle(0x4fc3f7);
         playerGraphics.fillRect(0, 0, 32, 48);
         playerGraphics.generateTexture('player', 32, 48);
         playerGraphics.destroy();
-        this.player.setTexture('player');
+
+        // 플레이어
+        this.player = this.physics.add.sprite(100, MAP_HEIGHT - 80, 'player');
         this.player.setCollideWorldBounds(true);
         this.player.setBounce(0.1);
 
@@ -67,47 +71,73 @@ class GameScene extends Phaser.Scene {
         // 키보드 입력
         this.cursors = this.input.keyboard.createCursorKeys();
 
-        // 모바일 터치 컨트롤
+        // 모바일 터치 컨트롤 (존 기반 멀티터치)
         this.createTouchControls();
 
-        // 카메라 설정 (맵이 화면보다 클 경우)
-        this.cameras.main.setBounds(0, 0, 1600, 600);
-        this.physics.world.setBounds(0, 0, 1600, 600);
-        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+        // 카메라 설정 - 플레이어 따라가기
+        this.cameras.main.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
+        this.physics.world.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
+        this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+        // 카메라 줌 (플레이어 주변만 보이도록)
+        this.cameras.main.setZoom(1.3);
     }
 
     createMap() {
-        // 바닥
-        this.addPlatform(0, 568, 1600, 32, 0x2d4059);
+        // 바닥 (전체 맵)
+        this.addPlatform(0, MAP_HEIGHT - 32, MAP_WIDTH, 32, 0x2d4059);
 
-        // 플랫폼 배치 - 탐색하기 재미있는 구조
-        // 왼쪽 영역
-        this.addPlatform(0, 450, 200, 20, 0x3a506b);
-        this.addPlatform(250, 380, 150, 20, 0x3a506b);
-        this.addPlatform(50, 300, 120, 20, 0x3a506b);
-        this.addPlatform(220, 220, 100, 20, 0x3a506b);
+        // ===== 시작 영역 (0~600) - 쉬운 구간 =====
+        this.addPlatform(150, MAP_HEIGHT - 130, 180, 20, 0x3a506b);
+        this.addPlatform(400, MAP_HEIGHT - 200, 150, 20, 0x3a506b);
 
-        // 중앙 영역
-        this.addPlatform(400, 460, 200, 20, 0x3a506b);
-        this.addPlatform(500, 350, 150, 20, 0x3a506b);
-        this.addPlatform(350, 250, 120, 20, 0x3a506b);
-        this.addPlatform(550, 180, 100, 20, 0x3a506b);
+        // ===== 지하 동굴 영역 (500~1200) =====
+        // 천장처럼 보이는 플랫폼
+        this.addPlatform(500, MAP_HEIGHT - 400, 700, 20, 0x2d4059);
+        // 동굴 내부 플랫폼
+        this.addPlatform(550, MAP_HEIGHT - 150, 120, 20, 0x3a506b);
+        this.addPlatform(750, MAP_HEIGHT - 220, 100, 20, 0x3a506b);
+        this.addPlatform(900, MAP_HEIGHT - 130, 150, 20, 0x3a506b);
+        this.addPlatform(1050, MAP_HEIGHT - 250, 130, 20, 0x3a506b);
+        // 동굴 위쪽으로 올라가는 길
+        this.addPlatform(600, MAP_HEIGHT - 500, 120, 20, 0x3a506b);
+        this.addPlatform(800, MAP_HEIGHT - 580, 100, 20, 0x3a506b);
 
-        // 오른쪽 영역
-        this.addPlatform(700, 420, 180, 20, 0x3a506b);
-        this.addPlatform(900, 350, 150, 20, 0x3a506b);
-        this.addPlatform(800, 250, 120, 20, 0x3a506b);
-        this.addPlatform(1000, 300, 100, 20, 0x3a506b);
+        // ===== 높은 절벽 영역 (1200~2000) =====
+        this.addPlatform(1200, MAP_HEIGHT - 150, 200, 20, 0x3a506b);
+        this.addPlatform(1350, MAP_HEIGHT - 280, 120, 20, 0x3a506b);
+        this.addPlatform(1500, MAP_HEIGHT - 400, 150, 20, 0x3a506b);
+        this.addPlatform(1650, MAP_HEIGHT - 520, 130, 20, 0x3a506b);
+        this.addPlatform(1450, MAP_HEIGHT - 620, 100, 20, 0x3a506b);
+        this.addPlatform(1600, MAP_HEIGHT - 730, 120, 20, 0x3a506b);
+        this.addPlatform(1800, MAP_HEIGHT - 600, 180, 20, 0x3a506b);
+        this.addPlatform(1900, MAP_HEIGHT - 200, 150, 20, 0x3a506b);
 
-        // 먼 오른쪽 영역
-        this.addPlatform(1100, 450, 200, 20, 0x3a506b);
-        this.addPlatform(1250, 350, 150, 20, 0x3a506b);
-        this.addPlatform(1350, 250, 120, 20, 0x3a506b);
-        this.addPlatform(1450, 180, 100, 20, 0x3a506b);
+        // ===== 부유 섬 영역 (2000~2800) =====
+        this.addPlatform(2050, MAP_HEIGHT - 300, 120, 20, 0x3a506b);
+        this.addPlatform(2250, MAP_HEIGHT - 400, 100, 20, 0x3a506b);
+        this.addPlatform(2400, MAP_HEIGHT - 500, 150, 20, 0x3a506b);
+        this.addPlatform(2200, MAP_HEIGHT - 650, 120, 20, 0x3a506b);
+        this.addPlatform(2450, MAP_HEIGHT - 750, 100, 20, 0x3a506b);
+        this.addPlatform(2600, MAP_HEIGHT - 350, 180, 20, 0x3a506b);
+        this.addPlatform(2700, MAP_HEIGHT - 500, 120, 20, 0x3a506b);
+        this.addPlatform(2550, MAP_HEIGHT - 150, 200, 20, 0x3a506b);
+
+        // ===== 최종 영역 (2800~4000) =====
+        this.addPlatform(2900, MAP_HEIGHT - 200, 150, 20, 0x3a506b);
+        this.addPlatform(3100, MAP_HEIGHT - 330, 130, 20, 0x3a506b);
+        this.addPlatform(3300, MAP_HEIGHT - 450, 150, 20, 0x3a506b);
+        this.addPlatform(3150, MAP_HEIGHT - 600, 100, 20, 0x3a506b);
+        this.addPlatform(3400, MAP_HEIGHT - 700, 120, 20, 0x3a506b);
+        this.addPlatform(3550, MAP_HEIGHT - 550, 180, 20, 0x3a506b);
+        this.addPlatform(3700, MAP_HEIGHT - 400, 150, 20, 0x3a506b);
+        this.addPlatform(3850, MAP_HEIGHT - 250, 130, 20, 0x3a506b);
+
+        // 벽 장애물들 (수직 플랫폼)
+        this.addPlatform(1180, MAP_HEIGHT - 300, 30, 270, 0x2d4059);
+        this.addPlatform(2800, MAP_HEIGHT - 250, 30, 220, 0x2d4059);
     }
 
     addPlatform(x, y, width, height, color) {
-        // 그래픽으로 플랫폼 텍스처 생성
         const key = `platform_${x}_${y}`;
         const graphics = this.add.graphics();
         graphics.fillStyle(color);
@@ -121,13 +151,13 @@ class GameScene extends Phaser.Scene {
     }
 
     createItems() {
-        // 5개의 키 아이템을 맵 곳곳에 배치
+        // 5개의 키 아이템 - 맵 곳곳에 숨김 (탐색해야 발견)
         const itemPositions = [
-            { x: 70, y: 270 },      // 왼쪽 위 플랫폼
-            { x: 575, y: 330 },     // 중앙 플랫폼
-            { x: 270, y: 190 },     // 왼쪽 높은 곳
-            { x: 1000, y: 270 },    // 오른쪽 영역
-            { x: 1470, y: 150 },    // 가장 먼 오른쪽 높은 곳
+            { x: 770, y: MAP_HEIGHT - 250 },    // 동굴 내부
+            { x: 820, y: MAP_HEIGHT - 610 },    // 동굴 위 높은 곳
+            { x: 1660, y: MAP_HEIGHT - 760 },   // 절벽 꼭대기
+            { x: 2460, y: MAP_HEIGHT - 780 },   // 부유 섬 높은 곳
+            { x: 3410, y: MAP_HEIGHT - 730 },   // 최종 영역 높은 곳
         ];
 
         // 아이템 텍스처 생성
@@ -179,52 +209,95 @@ class GameScene extends Phaser.Scene {
     }
 
     createTouchControls() {
-        // 터치 영역 (화면 하단)
-        const btnY = 540;
-        const btnAlpha = 0.3;
-        const btnSize = 70;
+        // 화면을 좌/우 두 영역으로 나눔
+        // 왼쪽 절반: 이동 (좌/우)
+        // 오른쪽 절반: 점프
+        const gameWidth = this.scale.width;
+        const gameHeight = this.scale.height;
 
-        // 왼쪽 버튼
-        this.btnLeft = this.add.circle(60, btnY, btnSize / 2, 0xffffff, btnAlpha)
-            .setScrollFactor(0).setDepth(200).setInteractive();
-        this.add.text(60, btnY, '◀', { fontSize: '24px' })
-            .setOrigin(0.5).setScrollFactor(0).setDepth(201);
-
-        // 오른쪽 버튼
-        this.btnRight = this.add.circle(160, btnY, btnSize / 2, 0xffffff, btnAlpha)
-            .setScrollFactor(0).setDepth(200).setInteractive();
-        this.add.text(160, btnY, '▶', { fontSize: '24px' })
-            .setOrigin(0.5).setScrollFactor(0).setDepth(201);
-
-        // 점프 버튼
-        this.btnJump = this.add.circle(740, btnY, btnSize / 2, 0xffffff, btnAlpha)
-            .setScrollFactor(0).setDepth(200).setInteractive();
-        this.add.text(740, btnY, '▲', { fontSize: '24px' })
-            .setOrigin(0.5).setScrollFactor(0).setDepth(201);
-
-        // 터치 상태 추적
+        // 터치 상태
         this.touchLeft = false;
         this.touchRight = false;
         this.touchJump = false;
 
-        this.btnLeft.on('pointerdown', () => this.touchLeft = true);
-        this.btnLeft.on('pointerup', () => this.touchLeft = false);
-        this.btnLeft.on('pointerout', () => this.touchLeft = false);
+        // 활성 포인터 추적용
+        this.activePointers = {};
 
-        this.btnRight.on('pointerdown', () => this.touchRight = true);
-        this.btnRight.on('pointerup', () => this.touchRight = false);
-        this.btnRight.on('pointerout', () => this.touchRight = false);
+        // 왼쪽 영역 UI (이동)
+        const leftZoneBg = this.add.rectangle(80, gameHeight - 60, 160, 80, 0xffffff, 0.08)
+            .setScrollFactor(0).setDepth(199);
+        this.add.text(40, gameHeight - 60, '◀', { fontSize: '28px', color: '#ffffff' })
+            .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.4);
+        this.add.text(120, gameHeight - 60, '▶', { fontSize: '28px', color: '#ffffff' })
+            .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.4);
 
-        this.btnJump.on('pointerdown', () => this.touchJump = true);
-        this.btnJump.on('pointerup', () => this.touchJump = false);
-        this.btnJump.on('pointerout', () => this.touchJump = false);
+        // 오른쪽 영역 UI (점프)
+        const rightZoneBg = this.add.rectangle(gameWidth - 60, gameHeight - 60, 100, 80, 0xffffff, 0.08)
+            .setScrollFactor(0).setDepth(199);
+        this.add.text(gameWidth - 60, gameHeight - 60, '▲', { fontSize: '28px', color: '#ffffff' })
+            .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.4);
+
+        // 포인터 이벤트로 멀티터치 처리
+        this.input.on('pointerdown', (pointer) => {
+            this.handleTouch(pointer, true);
+        });
+        this.input.on('pointermove', (pointer) => {
+            if (pointer.isDown) {
+                this.handleTouch(pointer, true);
+            }
+        });
+        this.input.on('pointerup', (pointer) => {
+            this.handleTouch(pointer, false);
+        });
+    }
+
+    handleTouch(pointer, isDown) {
+        const gameWidth = this.scale.width;
+        // 화면 좌표 기준으로 계산 (카메라 영향 없이)
+        const screenX = pointer.x;
+        const pointerId = pointer.id;
+
+        if (!isDown) {
+            // 포인터 떼면 해당 포인터의 상태 제거
+            const prev = this.activePointers[pointerId];
+            if (prev) {
+                if (prev === 'left') this.touchLeft = false;
+                else if (prev === 'right') this.touchRight = false;
+                else if (prev === 'jump') this.touchJump = false;
+            }
+            delete this.activePointers[pointerId];
+            return;
+        }
+
+        // 이전 상태 제거
+        const prev = this.activePointers[pointerId];
+        if (prev) {
+            if (prev === 'left') this.touchLeft = false;
+            else if (prev === 'right') this.touchRight = false;
+            else if (prev === 'jump') this.touchJump = false;
+        }
+
+        // 왼쪽 절반 = 이동 영역
+        if (screenX < gameWidth * 0.5) {
+            if (screenX < gameWidth * 0.25) {
+                this.touchLeft = true;
+                this.activePointers[pointerId] = 'left';
+            } else {
+                this.touchRight = true;
+                this.activePointers[pointerId] = 'right';
+            }
+        }
+        // 오른쪽 절반 = 점프
+        else {
+            this.touchJump = true;
+            this.activePointers[pointerId] = 'jump';
+        }
     }
 
     updateTimer() {
         this.timeLeft--;
         this.timerText.setText(this.formatTime(this.timeLeft));
 
-        // 30초 이하일 때 빨간색으로
         if (this.timeLeft <= 30) {
             this.timerText.setColor('#ff4444');
         } else if (this.timeLeft <= 60) {
@@ -246,7 +319,7 @@ class GameScene extends Phaser.Scene {
 
     update() {
         const speed = 250;
-        const jumpSpeed = -450;
+        const jumpSpeed = -500;
         const onGround = this.player.body.touching.down;
 
         // 좌/우 이동
