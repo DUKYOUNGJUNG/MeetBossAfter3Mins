@@ -3,21 +3,21 @@ const MAP_WIDTH = 4000;
 const MAP_HEIGHT = 1200;
 
 // 대시 설정
-const DASH_DISTANCE = 200;
-const DASH_SPEED = 800;
+const DASH_DISTANCE = 300;
+const DASH_SPEED = 900;
 const DASH_COOLDOWN = 2000;
 
 // 조작감 설정
 const MOVE_SPEED = 280;
-const JUMP_SPEED = -520;
+const JUMP_SPEED = -450;
 const ACCELERATION = 1200;       // 가속도 (0→최대속도)
 const DECELERATION = 1800;       // 감속도 (미끄러짐)
 const AIR_ACCELERATION = 800;    // 공중 가속도 (지상보다 느림)
 const AIR_DECELERATION = 600;    // 공중 감속도
 const COYOTE_TIME = 100;         // 코요테 타임 (ms)
 const JUMP_BUFFER_TIME = 120;    // 점프 버퍼 (ms)
-const FALL_GRAVITY_MULT = 2.5;   // 하강 시 중력 배율
-const LOW_JUMP_GRAVITY_MULT = 3; // 짧은 점프 시 중력 배율
+const FALL_GRAVITY_MULT = 3.5;   // 하강 시 중력 배율
+const LOW_JUMP_GRAVITY_MULT = 4.5; // 짧은 점프 시 중력 배율
 const NORMAL_GRAVITY = 800;
 
 class GameScene extends Phaser.Scene {
