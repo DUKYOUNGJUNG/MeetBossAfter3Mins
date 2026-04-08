@@ -42,32 +42,8 @@ class GameScene extends Phaser.Scene {
         // 아이템 수집
         this.physics.add.overlap(this.player, this.items, this.collectItem, null, this);
 
-        // 타이머 (180초)
-        this.timeLeft = 180;
-        this.timerText = this.add.text(400, 16, this.formatTime(this.timeLeft), {
-            fontSize: '28px',
-            fontFamily: 'monospace',
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 4
-        }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(100);
-
-        // 버전 표시
-        this.add.text(784, 16, 'v0.0.1', {
-            fontSize: '14px',
-            fontFamily: 'monospace',
-            color: '#666666'
-        }).setOrigin(1, 0).setScrollFactor(0).setDepth(100);
-
-        // 아이템 카운터 UI
-        this.itemText = this.add.text(16, 16, '🔑 0 / 5', {
-            fontSize: '22px',
-            color: '#ffd700',
-            stroke: '#000000',
-            strokeThickness: 3
-        }).setScrollFactor(0).setDepth(100);
-
         // 1초마다 타이머 감소
+        this.timeLeft = 180;
         this.timerEvent = this.time.addEvent({
             delay: 1000,
             callback: this.updateTimer,
@@ -78,15 +54,60 @@ class GameScene extends Phaser.Scene {
         // 키보드 입력
         this.cursors = this.input.keyboard.createCursorKeys();
 
-        // 모바일 터치 컨트롤 (존 기반 멀티터치)
-        this.createTouchControls();
-
         // 카메라 설정 - 플레이어 따라가기
         this.cameras.main.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
         this.physics.world.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-        // 카메라 줌 (플레이어 주변만 보이도록)
         this.cameras.main.setZoom(1.3);
+
+        // UI 전용 카메라 (줌/스크롤 영향 없는 고정 레이어)
+        this.uiCamera = this.cameras.add(0, 0, 800, 600);
+        this.uiCamera.setScroll(0, 0);
+
+        // 메인 카메라에서 UI 무시, UI 카메라에서 게임 오브젝트 무시
+        this.uiLayer = this.add.container(0, 0);
+
+        // 타이머
+        this.timerText = this.add.text(400, 16, this.formatTime(this.timeLeft), {
+            fontSize: '28px',
+            fontFamily: 'monospace',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5, 0);
+
+        // 버전 표시
+        const versionText = this.add.text(784, 16, 'v0.0.1', {
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            color: '#666666'
+        }).setOrigin(1, 0);
+
+        // 아이템 카운터
+        this.itemText = this.add.text(16, 16, '🔑 0 / 5', {
+            fontSize: '22px',
+            color: '#ffd700',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+
+        // UI 요소들을 컨테이너에 추가
+        this.uiLayer.add([this.timerText, versionText, this.itemText]);
+
+        // 메인 카메라는 UI 레이어 무시
+        this.cameras.main.ignore(this.uiLayer);
+        this.cameras.main.ignore(this.timerText);
+        this.cameras.main.ignore(versionText);
+        this.cameras.main.ignore(this.itemText);
+
+        // UI 카메라는 게임 오브젝트 무시 (UI만 렌더링)
+        // 플랫폼, 아이템, 플레이어 모두 UI 카메라에서 제외
+        this.platforms.getChildren().forEach(p => this.uiCamera.ignore(p));
+        this.items.getChildren().forEach(i => this.uiCamera.ignore(i));
+        this.uiCamera.ignore(this.player);
+
+        // 모바일 터치 컨트롤
+        this.createTouchControls();
     }
 
     createMap() {
@@ -188,6 +209,8 @@ class GameScene extends Phaser.Scene {
                 yoyo: true,
                 repeat: -1
             });
+            // UI 카메라에서 아이템 숨기기
+            if (this.uiCamera) this.uiCamera.ignore(item);
         });
     }
 
@@ -198,6 +221,7 @@ class GameScene extends Phaser.Scene {
 
         // 수집 이펙트
         const flash = this.add.circle(item.x, item.y, 20, 0xffd700, 0.8);
+        if (this.uiCamera) this.uiCamera.ignore(flash);
         this.tweens.add({
             targets: flash,
             scale: 2,
@@ -216,23 +240,28 @@ class GameScene extends Phaser.Scene {
     }
 
     createTouchControls() {
-        // 가이드 UI만 표시 (실제 입력은 update에서 포인터 직접 체크)
-        const gameWidth = this.scale.width;
-        const gameHeight = this.scale.height;
+        // 가이드 UI (UI 카메라에 연결)
+        const gameWidth = 800;
+        const gameHeight = 600;
 
         // 왼쪽 영역 UI (이동)
-        this.add.rectangle(80, gameHeight - 60, 160, 80, 0xffffff, 0.08)
-            .setScrollFactor(0).setDepth(199);
-        this.add.text(40, gameHeight - 60, '◀', { fontSize: '28px', color: '#ffffff' })
-            .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.4);
-        this.add.text(120, gameHeight - 60, '▶', { fontSize: '28px', color: '#ffffff' })
-            .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.4);
+        const leftBg = this.add.rectangle(80, gameHeight - 60, 160, 80, 0xffffff, 0.08);
+        const leftArrow = this.add.text(40, gameHeight - 60, '◀', { fontSize: '28px', color: '#ffffff' })
+            .setOrigin(0.5).setAlpha(0.4);
+        const rightArrow = this.add.text(120, gameHeight - 60, '▶', { fontSize: '28px', color: '#ffffff' })
+            .setOrigin(0.5).setAlpha(0.4);
 
         // 오른쪽 영역 UI (점프)
-        this.add.rectangle(gameWidth - 60, gameHeight - 60, 100, 80, 0xffffff, 0.08)
-            .setScrollFactor(0).setDepth(199);
-        this.add.text(gameWidth - 60, gameHeight - 60, '▲', { fontSize: '28px', color: '#ffffff' })
-            .setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0.4);
+        const jumpBg = this.add.rectangle(gameWidth - 60, gameHeight - 60, 100, 80, 0xffffff, 0.08);
+        const jumpArrow = this.add.text(gameWidth - 60, gameHeight - 60, '▲', { fontSize: '28px', color: '#ffffff' })
+            .setOrigin(0.5).setAlpha(0.4);
+
+        // 터치 UI를 UI 레이어에 추가
+        const touchElements = [leftBg, leftArrow, rightArrow, jumpBg, jumpArrow];
+        this.uiLayer.add(touchElements);
+
+        // 메인 카메라에서 숨기기
+        touchElements.forEach(el => this.cameras.main.ignore(el));
     }
 
     checkTouchInput() {
