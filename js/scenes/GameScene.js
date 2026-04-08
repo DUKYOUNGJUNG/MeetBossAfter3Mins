@@ -5,7 +5,20 @@ const MAP_HEIGHT = 1200;
 // 대시 설정
 const DASH_DISTANCE = 200;
 const DASH_SPEED = 800;
-const DASH_COOLDOWN = 2000; // 2초 쿨타임
+const DASH_COOLDOWN = 2000;
+
+// 조작감 설정
+const MOVE_SPEED = 280;
+const JUMP_SPEED = -520;
+const ACCELERATION = 1200;       // 가속도 (0→최대속도)
+const DECELERATION = 1800;       // 감속도 (미끄러짐)
+const AIR_ACCELERATION = 800;    // 공중 가속도 (지상보다 느림)
+const AIR_DECELERATION = 600;    // 공중 감속도
+const COYOTE_TIME = 100;         // 코요테 타임 (ms)
+const JUMP_BUFFER_TIME = 120;    // 점프 버퍼 (ms)
+const FALL_GRAVITY_MULT = 2.5;   // 하강 시 중력 배율
+const LOW_JUMP_GRAVITY_MULT = 3; // 짧은 점프 시 중력 배율
+const NORMAL_GRAVITY = 800;
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -33,13 +46,21 @@ class GameScene extends Phaser.Scene {
         // 플레이어
         this.player = this.physics.add.sprite(100, MAP_HEIGHT - 80, 'player');
         this.player.setCollideWorldBounds(true);
-        this.player.setBounce(0.1);
+        this.player.setBounce(0);
+        this.player.setMaxVelocity(MOVE_SPEED, 900);
 
         // 대시 상태
         this.isDashing = false;
         this.dashCooldownReady = true;
-        this.lastDirection = 1; // 1 = 오른쪽, -1 = 왼쪽
+        this.lastDirection = 1;
         this.dashTime = 0;
+
+        // 조작감 상태
+        this.coyoteTimer = 0;        // 코요테 타임 남은 시간
+        this.jumpBufferTimer = 0;    // 점프 버퍼 남은 시간
+        this.wasOnGround = false;    // 이전 프레임 지상 여부
+        this.isJumping = false;      // 점프 중인지 (짧은/긴 점프 구분용)
+        this.jumpHeld = false;       // 점프 버튼 누르고 있는지
 
         // 플레이어-플랫폼 충돌
         this.physics.add.collider(this.player, this.platforms);
@@ -66,13 +87,13 @@ class GameScene extends Phaser.Scene {
         this.cursors = this.input.keyboard.createCursorKeys();
         this.dashKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
-        // 카메라 설정 - 플레이어 따라가기
+        // 카메라 설정
         this.cameras.main.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
         this.physics.world.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
         this.cameras.main.setZoom(1.3);
 
-        // UI 전용 카메라 (줌/스크롤 영향 없는 고정 레이어)
+        // UI 전용 카메라
         this.uiCamera = this.cameras.add(0, 0, 800, 600);
         this.uiCamera.setScroll(0, 0);
 
@@ -89,7 +110,7 @@ class GameScene extends Phaser.Scene {
         }).setOrigin(0.5, 0);
 
         // 버전 표시
-        const versionText = this.add.text(784, 16, 'v0.0.2', {
+        const versionText = this.add.text(784, 16, 'v0.0.3', {
             fontSize: '14px',
             fontFamily: 'monospace',
             color: '#666666'
@@ -112,20 +133,24 @@ class GameScene extends Phaser.Scene {
         this.cameras.main.ignore(versionText);
         this.cameras.main.ignore(this.itemText);
 
-        // UI 카메라는 게임 오브젝트 무시 (UI만 렌더링)
+        // UI 카메라는 게임 오브젝트 무시
         this.platforms.getChildren().forEach(p => this.uiCamera.ignore(p));
         this.items.getChildren().forEach(i => this.uiCamera.ignore(i));
         this.uiCamera.ignore(this.player);
 
         // 모바일 터치 컨트롤
         this.createTouchControls();
+
+        // 이전 프레임 점프 입력 (JustDown 감지용)
+        this.prevJumpInput = false;
+        this.prevDashInput = false;
     }
 
     createMap() {
         // 바닥 (전체 맵)
         this.addPlatform(0, MAP_HEIGHT - 32, MAP_WIDTH, 32, 0x2d4059);
 
-        // ===== 시작 영역 (0~600) - 쉬운 구간 =====
+        // ===== 시작 영역 (0~600) =====
         this.addPlatform(150, MAP_HEIGHT - 130, 180, 20, 0x3a506b);
         this.addPlatform(400, MAP_HEIGHT - 200, 150, 20, 0x3a506b);
 
@@ -168,7 +193,7 @@ class GameScene extends Phaser.Scene {
         this.addPlatform(3700, MAP_HEIGHT - 400, 150, 20, 0x3a506b);
         this.addPlatform(3850, MAP_HEIGHT - 250, 130, 20, 0x3a506b);
 
-        // 벽 장애물들 (수직 플랫폼)
+        // 벽 장애물들
         this.addPlatform(1180, MAP_HEIGHT - 300, 30, 270, 0x2d4059);
         this.addPlatform(2800, MAP_HEIGHT - 250, 30, 220, 0x2d4059);
     }
@@ -187,7 +212,6 @@ class GameScene extends Phaser.Scene {
     }
 
     createItems() {
-        // 5개의 키 아이템 - 맵 곳곳에 숨김 (탐색해야 발견)
         const itemPositions = [
             { x: 770, y: MAP_HEIGHT - 250 },
             { x: 820, y: MAP_HEIGHT - 610 },
@@ -196,7 +220,6 @@ class GameScene extends Phaser.Scene {
             { x: 3410, y: MAP_HEIGHT - 730 },
         ];
 
-        // 아이템 텍스처 생성
         const itemGraphics = this.add.graphics();
         itemGraphics.fillStyle(0xffd700);
         itemGraphics.fillCircle(12, 12, 12);
@@ -225,7 +248,6 @@ class GameScene extends Phaser.Scene {
         this.collectedCount++;
         this.itemText.setText(`🔑 ${this.collectedCount} / ${this.totalItems}`);
 
-        // 수집 이펙트
         const flash = this.add.circle(item.x, item.y, 20, 0xffd700, 0.8);
         if (this.uiCamera) this.uiCamera.ignore(flash);
         this.tweens.add({
@@ -236,7 +258,6 @@ class GameScene extends Phaser.Scene {
             onComplete: () => flash.destroy()
         });
 
-        // 전부 수집 시 클리어
         if (this.collectedCount >= this.totalItems) {
             this.timerEvent.remove();
             this.time.delayedCall(500, () => {
@@ -246,8 +267,6 @@ class GameScene extends Phaser.Scene {
     }
 
     createTouchControls() {
-        // C안: 왼쪽 절반 = 이동(위치로 좌/우), 오른쪽에 대시+점프 버튼
-        // 터치 영역: 0~50% = 이동, 50~75% = 대시, 75~100% = 점프
         const W = 800;
         const H = 600;
         const btnY = H - 50;
@@ -262,7 +281,7 @@ class GameScene extends Phaser.Scene {
         const dashBtn = this.add.text(500, btnY, '💨', { fontSize: '32px' })
             .setOrigin(0.5).setAlpha(0.3);
 
-        // 대시 쿨타임 표시 (대시 버튼 아래)
+        // 대시 쿨타임 표시
         this.dashCooldownBar = this.add.rectangle(500, btnY + 28, 60, 6, 0x00ffaa, 0.8)
             .setOrigin(0.5);
         this.dashCooldownText = this.add.text(500, btnY - 28, '', {
@@ -279,7 +298,6 @@ class GameScene extends Phaser.Scene {
         const divider1 = this.add.rectangle(W * 0.5, H / 2, 1, H, 0xffffff, 0.1);
         const divider2 = this.add.rectangle(W * 0.75, H / 2, 1, H, 0xffffff, 0.05);
 
-        // UI 레이어에 추가
         const touchElements = [leftArrow, rightArrow, dashBtn, this.dashCooldownBar,
             this.dashCooldownText, jumpArrow, divider1, divider2];
         this.uiLayer.add(touchElements);
@@ -293,7 +311,6 @@ class GameScene extends Phaser.Scene {
         this.dashCooldownReady = false;
         this.dashTime = DASH_DISTANCE / DASH_SPEED * 1000;
 
-        // 대시 방향 (현재 이동 방향 또는 마지막 방향)
         const dir = this.lastDirection;
 
         // 대시 중 중력 무시
@@ -321,7 +338,7 @@ class GameScene extends Phaser.Scene {
             this.player.setAlpha(1);
         });
 
-        // 쿨타임 시작
+        // 쿨타임
         this.dashCooldownBar.setScale(0, 1);
         this.dashCooldownText.setText('쿨타임').setAlpha(1);
 
@@ -338,7 +355,6 @@ class GameScene extends Phaser.Scene {
     }
 
     checkTouchInput() {
-        // 매 프레임 모든 활성 포인터를 직접 체크
         const gameWidth = this.scale.width;
 
         this.touchLeft = false;
@@ -357,20 +373,15 @@ class GameScene extends Phaser.Scene {
         for (const pointer of pointers) {
             if (pointer && pointer.isDown) {
                 const screenX = pointer.x;
-                // 왼쪽 절반 = 이동
                 if (screenX < gameWidth * 0.5) {
                     if (screenX < gameWidth * 0.25) {
                         this.touchLeft = true;
                     } else {
                         this.touchRight = true;
                     }
-                }
-                // 50~75% = 대시
-                else if (screenX < gameWidth * 0.75) {
+                } else if (screenX < gameWidth * 0.75) {
                     this.touchDash = true;
-                }
-                // 75~100% = 점프
-                else {
+                } else {
                     this.touchJump = true;
                 }
             }
@@ -399,36 +410,107 @@ class GameScene extends Phaser.Scene {
         return `${min}:${sec.toString().padStart(2, '0')}`;
     }
 
-    update() {
+    update(time, delta) {
         // 매 프레임 터치 상태 갱신
         this.checkTouchInput();
 
-        const speed = 250;
-        const jumpSpeed = -500;
-        const onGround = this.player.body.touching.down;
+        const dt = delta / 1000; // 초 단위 delta
+        const onGround = this.player.body.touching.down || this.player.body.blocked.down;
 
-        // 대시 중에는 이동 입력 무시
-        if (this.isDashing) return;
+        // 대시 중에는 이동/점프 입력 무시
+        if (this.isDashing) {
+            this.prevJumpInput = this.cursors.up.isDown || this.touchJump;
+            this.prevDashInput = this.touchDash;
+            return;
+        }
 
-        // 좌/우 이동
-        if (this.cursors.left.isDown || this.touchLeft) {
-            this.player.setVelocityX(-speed);
+        // ========== 코요테 타임 ==========
+        if (onGround) {
+            this.coyoteTimer = COYOTE_TIME;
+            this.isJumping = false;
+        } else {
+            this.coyoteTimer -= delta;
+        }
+        const canCoyoteJump = this.coyoteTimer > 0;
+
+        // ========== 점프 버퍼 ==========
+        const jumpInput = this.cursors.up.isDown || this.touchJump;
+        const jumpJustPressed = jumpInput && !this.prevJumpInput;
+
+        if (jumpJustPressed) {
+            this.jumpBufferTimer = JUMP_BUFFER_TIME;
+        } else {
+            this.jumpBufferTimer -= delta;
+        }
+
+        // ========== 좌/우 이동 (가속/감속) ==========
+        const moveLeft = this.cursors.left.isDown || this.touchLeft;
+        const moveRight = this.cursors.right.isDown || this.touchRight;
+        const accel = onGround ? ACCELERATION : AIR_ACCELERATION;
+        const decel = onGround ? DECELERATION : AIR_DECELERATION;
+
+        let vx = this.player.body.velocity.x;
+
+        if (moveLeft) {
+            vx -= accel * dt;
+            if (vx < -MOVE_SPEED) vx = -MOVE_SPEED;
             this.lastDirection = -1;
-        } else if (this.cursors.right.isDown || this.touchRight) {
-            this.player.setVelocityX(speed);
+        } else if (moveRight) {
+            vx += accel * dt;
+            if (vx > MOVE_SPEED) vx = MOVE_SPEED;
             this.lastDirection = 1;
         } else {
-            this.player.setVelocityX(0);
+            // 감속 (미끄러짐)
+            if (vx > 0) {
+                vx -= decel * dt;
+                if (vx < 0) vx = 0;
+            } else if (vx < 0) {
+                vx += decel * dt;
+                if (vx > 0) vx = 0;
+            }
         }
 
-        // 점프 (땅에 있을 때만)
-        if ((this.cursors.up.isDown || this.touchJump) && onGround) {
-            this.player.setVelocityY(jumpSpeed);
+        this.player.setVelocityX(vx);
+
+        // ========== 점프 (코요테 타임 + 점프 버퍼) ==========
+        if (this.jumpBufferTimer > 0 && canCoyoteJump && !this.isJumping) {
+            this.player.setVelocityY(JUMP_SPEED);
+            this.isJumping = true;
+            this.jumpHeld = true;
+            this.jumpBufferTimer = 0;
+            this.coyoteTimer = 0; // 코요테 타임 소진
         }
 
-        // 대시 (Shift키 또는 터치)
-        if (Phaser.Input.Keyboard.JustDown(this.dashKey) || this.touchDash) {
+        // 점프 버튼 떼면 짧은 점프
+        if (!jumpInput) {
+            this.jumpHeld = false;
+        }
+
+        // ========== 가변 중력 (하강 무거움 + 짧은 점프) ==========
+        const vy = this.player.body.velocity.y;
+        if (!onGround && !this.isDashing) {
+            if (vy > 0) {
+                // 하강 중 → 중력 증가 (묵직한 착지)
+                this.player.body.setGravityY(NORMAL_GRAVITY * (FALL_GRAVITY_MULT - 1));
+            } else if (vy < 0 && !this.jumpHeld) {
+                // 상승 중 + 점프 버튼 안 누르고 있음 → 빠르게 하강 (짧은 점프)
+                this.player.body.setGravityY(NORMAL_GRAVITY * (LOW_JUMP_GRAVITY_MULT - 1));
+            } else {
+                this.player.body.setGravityY(0);
+            }
+        } else {
+            this.player.body.setGravityY(0);
+        }
+
+        // ========== 대시 ==========
+        const dashJustPressed = this.touchDash && !this.prevDashInput;
+        if (Phaser.Input.Keyboard.JustDown(this.dashKey) || dashJustPressed) {
             this.doDash();
         }
+
+        // 이전 프레임 입력 저장
+        this.prevJumpInput = jumpInput;
+        this.prevDashInput = this.touchDash;
+        this.wasOnGround = onGround;
     }
 }
