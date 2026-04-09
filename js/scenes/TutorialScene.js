@@ -82,6 +82,10 @@ class TutorialScene extends Phaser.Scene {
 
         // 키보드
         this.cursors = this.input.keyboard.createCursorKeys();
+        this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+        this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+        this.keyJ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
+        this.keyK = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K);
         this.dashKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
         // 터치 컨트롤
@@ -389,7 +393,7 @@ class TutorialScene extends Phaser.Scene {
         const onGround = this.player.body.touching.down || this.player.body.blocked.down;
 
         if (this.isDashing) {
-            this.prevJumpInput = this.cursors.up.isDown || this.touchJump;
+            this.prevJumpInput = this.cursors.up.isDown || this.keyK.isDown || this.touchJump;
             this.prevDashInput = this.touchDash;
             return;
         }
@@ -404,7 +408,7 @@ class TutorialScene extends Phaser.Scene {
         const canCoyoteJump = this.coyoteTimer > 0;
 
         // 점프 버퍼
-        const jumpInput = this.cursors.up.isDown || this.touchJump;
+        const jumpInput = this.cursors.up.isDown || this.keyK.isDown || this.touchJump;
         const jumpJustPressed = jumpInput && !this.prevJumpInput;
         if (jumpJustPressed) {
             this.jumpBufferTimer = JUMP_BUFFER_TIME;
@@ -413,8 +417,8 @@ class TutorialScene extends Phaser.Scene {
         }
 
         // 좌우 이동
-        const moveLeft = this.canMove && (this.cursors.left.isDown || this.touchLeft);
-        const moveRight = this.canMove && (this.cursors.right.isDown || this.touchRight);
+        const moveLeft = this.canMove && (this.cursors.left.isDown || this.keyA.isDown || this.touchLeft);
+        const moveRight = this.canMove && (this.cursors.right.isDown || this.keyD.isDown || this.touchRight);
         const accel = onGround ? ACCELERATION : AIR_ACCELERATION;
         const decel = onGround ? DECELERATION : AIR_DECELERATION;
 
@@ -460,7 +464,7 @@ class TutorialScene extends Phaser.Scene {
 
         // 대시
         const dashJustPressed = this.touchDash && !this.prevDashInput;
-        if (this.canDash && (Phaser.Input.Keyboard.JustDown(this.dashKey) || dashJustPressed)) {
+        if (this.canDash && (Phaser.Input.Keyboard.JustDown(this.dashKey) || Phaser.Input.Keyboard.JustDown(this.keyJ) || dashJustPressed)) {
             this.doDash();
         }
 

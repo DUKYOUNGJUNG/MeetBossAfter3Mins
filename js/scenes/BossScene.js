@@ -75,6 +75,10 @@ class BossScene extends Phaser.Scene {
 
         // 키보드
         this.cursors = this.input.keyboard.createCursorKeys();
+        this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+        this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+        this.keyJ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
+        this.keyK = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K);
         this.dashKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
         // 카메라
@@ -315,7 +319,7 @@ class BossScene extends Phaser.Scene {
         const onGround = this.player.body.touching.down || this.player.body.blocked.down;
 
         if (this.isDashing) {
-            this.prevJumpInput = this.cursors.up.isDown || this.touchJump;
+            this.prevJumpInput = this.cursors.up.isDown || this.keyK.isDown || this.touchJump;
             this.prevDashInput = this.touchDash;
             return;
         }
@@ -325,14 +329,14 @@ class BossScene extends Phaser.Scene {
         else { this.coyoteTimer -= delta; }
 
         // 점프 버퍼
-        const jumpInput = this.cursors.up.isDown || this.touchJump;
+        const jumpInput = this.cursors.up.isDown || this.keyK.isDown || this.touchJump;
         const jumpJustPressed = jumpInput && !this.prevJumpInput;
         if (jumpJustPressed) this.jumpBufferTimer = JUMP_BUFFER_TIME;
         else this.jumpBufferTimer -= delta;
 
         // 이동
-        const moveLeft = this.cursors.left.isDown || this.touchLeft;
-        const moveRight = this.cursors.right.isDown || this.touchRight;
+        const moveLeft = this.cursors.left.isDown || this.keyA.isDown || this.touchLeft;
+        const moveRight = this.cursors.right.isDown || this.keyD.isDown || this.touchRight;
         const accel = onGround ? ACCELERATION : AIR_ACCELERATION;
         const decel = onGround ? DECELERATION : AIR_DECELERATION;
 
@@ -360,7 +364,7 @@ class BossScene extends Phaser.Scene {
 
         // 대시
         const dashJustPressed = this.touchDash && !this.prevDashInput;
-        if (Phaser.Input.Keyboard.JustDown(this.dashKey) || dashJustPressed) this.doDash();
+        if (Phaser.Input.Keyboard.JustDown(this.dashKey) || Phaser.Input.Keyboard.JustDown(this.keyJ) || dashJustPressed) this.doDash();
 
         this.prevJumpInput = jumpInput;
         this.prevDashInput = this.touchDash;
