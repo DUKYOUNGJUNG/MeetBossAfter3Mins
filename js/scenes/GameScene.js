@@ -354,6 +354,7 @@ class GameScene extends Phaser.Scene {
                     enemy.body.setSize(30, 30);
                     enemy.body.allowGravity = false;
                     enemy.body.immovable = true;
+                    enemy.body.moves = false;  // 플랫폼 충돌에서 제외
                     break;
 
                 case 'falling':
@@ -373,6 +374,7 @@ class GameScene extends Phaser.Scene {
                     enemy.setData('active', false);
                     enemy.body.allowGravity = false;
                     enemy.body.immovable = true;
+                    enemy.body.moves = false;
                     enemy.body.setSize(24, 24);
                     enemy.setAlpha(0.3);
                     break;
