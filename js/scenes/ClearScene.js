@@ -61,16 +61,9 @@ class ClearScene extends Phaser.Scene {
         // 다음 행동 결정
         this.time.delayedCall(2500, () => {
             if (nextStageId) {
-                // 다음 스테이지로
-                const nextData = STAGE_DATA[nextStageId];
-                const nextText = this.add.text(400, 420,
-                    `다음: ${nextData.era} - ${nextData.name}`, {
-                    fontSize: '18px',
-                    color: '#aaaaaa'
-                }).setOrigin(0.5);
-
-                const continueText = this.add.text(400, 460, '탭하여 계속', {
-                    fontSize: '24px',
+                // 다음 스테이지가 있음 → 스테이지 선택으로
+                const continueText = this.add.text(400, 450, '탭하여 스테이지 선택으로', {
+                    fontSize: '22px',
                     color: '#ffffff'
                 }).setOrigin(0.5);
 
@@ -79,11 +72,11 @@ class ClearScene extends Phaser.Scene {
                     alpha: 0.3, duration: 800, yoyo: true, repeat: -1
                 });
 
-                const goNext = () => {
-                    this.scene.start('GameScene', { stageId: nextStageId });
+                const goSelect = () => {
+                    this.scene.start('StageSelectScene');
                 };
-                this.input.once('pointerdown', goNext);
-                this.input.keyboard.once('keydown', goNext);
+                this.input.once('pointerdown', goSelect);
+                this.input.keyboard.once('keydown', goSelect);
 
             } else if (stageData.route === 'normal' && progress.redUnlocked) {
                 // 노멀 루트 완료 → 레드 루트 해금
@@ -119,7 +112,7 @@ class ClearScene extends Phaser.Scene {
                         });
 
                         const goRed = () => {
-                            this.scene.start('GameScene', { stageId: 'red_1' });
+                            this.scene.start('StageSelectScene');
                         };
                         this.input.once('pointerdown', goRed);
                         this.input.keyboard.once('keydown', goRed);
