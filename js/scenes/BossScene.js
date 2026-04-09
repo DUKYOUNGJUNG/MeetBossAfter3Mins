@@ -69,8 +69,8 @@ class BossScene extends Phaser.Scene {
                     this.tweens.add({ targets: deathText, alpha: 1, duration: 800 });
 
                     this.time.delayedCall(2000, () => {
-                        const restartText = this.add.text(400, 450, '탭하여 다시 도전', {
-                            fontSize: '24px',
+                        const restartText = this.add.text(400, 450, '탭하여 스테이지 선택으로', {
+                            fontSize: '22px',
                             color: '#aaaaaa'
                         }).setOrigin(0.5);
 
@@ -79,12 +79,11 @@ class BossScene extends Phaser.Scene {
                             alpha: 0.3, duration: 800, yoyo: true, repeat: -1
                         });
 
-                        // 같은 스테이지 재도전
-                        const restart = () => {
-                            this.scene.start('GameScene', { stageId: this.stageId });
+                        const goSelect = () => {
+                            this.scene.start('StageSelectScene');
                         };
-                        this.input.once('pointerdown', restart);
-                        this.input.keyboard.once('keydown', restart);
+                        this.input.once('pointerdown', goSelect);
+                        this.input.keyboard.once('keydown', goSelect);
                     });
                 });
             }
