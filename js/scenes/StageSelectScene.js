@@ -122,6 +122,9 @@ class StageSelectScene extends Phaser.Scene {
                 this.scene.restart();
             });
         }
+
+        // 초기화 버튼
+        this.addResetButton();
     }
 
     createRedSelect() {
@@ -229,6 +232,21 @@ class StageSelectScene extends Phaser.Scene {
         normalBtn.on('pointerdown', () => {
             this.isRedMode = false;
             this.scene.restart();
+        });
+
+        // 초기화 버튼
+        this.addResetButton();
+    }
+
+    addResetButton() {
+        const resetBtn = this.add.text(780, 580, '🔄 초기화', {
+            fontSize: '14px', fontFamily: 'monospace',
+            color: '#666666'
+        }).setOrigin(1, 1).setInteractive({ useHandCursor: true });
+
+        resetBtn.on('pointerdown', () => {
+            StageProgress.reset();
+            this.scene.start('TutorialScene');
         });
     }
 
