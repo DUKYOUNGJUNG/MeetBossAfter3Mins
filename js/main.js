@@ -2,10 +2,6 @@
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 
-// 튜토리얼 완료 여부에 따라 시작 씬 결정
-const progress = StageProgress.load();
-const startScene = progress.tutorialDone ? StageSelectScene : TutorialScene;
-
 const config = {
     type: Phaser.AUTO,
     width: GAME_WIDTH,
@@ -23,7 +19,16 @@ const config = {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
-    scene: [startScene, TutorialScene, IntroScene, StageSelectScene, GameScene, BossScene, ClearScene]
+    scene: [TutorialScene, IntroScene, StageSelectScene, GameScene, BossScene, ClearScene]
 };
 
 const game = new Phaser.Game(config);
+
+// 튜토리얼 완료 시 바로 스테이지 선택으로 전환
+game.events.once('ready', () => {
+    const progress = StageProgress.load();
+    if (progress.tutorialDone) {
+        game.scene.stop('TutorialScene');
+        game.scene.start('StageSelectScene');
+    }
+});
