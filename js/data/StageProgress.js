@@ -7,6 +7,7 @@ const StageProgress = {
             currentRoute: 'normal',
             currentStage: 'normal_1',
             cleared: {},
+            tutorialDone: false,
             normalComplete: false,
             redUnlocked: false,
             redComplete: false,

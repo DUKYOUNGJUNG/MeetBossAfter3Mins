@@ -224,6 +224,10 @@ class TutorialScene extends Phaser.Scene {
         const zone = trigger.getData('zone');
 
         if (zone === 5) {
+            // 튜토리얼 완료 저장
+            const progress = StageProgress.load();
+            progress.tutorialDone = true;
+            StageProgress.save(progress);
             // 골! → 인트로 컷씬
             this.scene.start('IntroScene');
             return;
