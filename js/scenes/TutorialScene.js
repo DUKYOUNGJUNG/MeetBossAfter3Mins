@@ -129,9 +129,9 @@ class TutorialScene extends Phaser.Scene {
         // ===== 구역 3: 대시 (1600~2400) =====
         // 출발 바닥
         this.addPlatform(1600, TUTORIAL_HEIGHT - 32, 200, 32, 0x2d4059);
-        // 갭! (걸어서/점프로 못 넘는 거리, 대시 필요)
+        // 갭 200px (점프로는 부족, 대시로 넘기)
         // 도착 바닥
-        this.addPlatform(2100, TUTORIAL_HEIGHT - 32, 300, 32, 0x2d4059);
+        this.addPlatform(2000, TUTORIAL_HEIGHT - 32, 400, 32, 0x2d4059);
 
         // ===== 구역 4: 점프 + 공중 대시 (2400~3200) =====
         // 출발 바닥
