@@ -283,8 +283,8 @@ const STAGE_DATA = {
             { type: 'patrol', x: 200, y: 1240, speed: 80, minX: 200, maxX: 350 },
             { type: 'patrol', x: 2900, y: 1020, speed: 90, minX: 2900, maxX: 3040 },
             // 원거리 사격형
-            { type: 'shooter', x: 1800, y: 1000, interval: 2500 },
-            { type: 'shooter', x: 3100, y: 860, interval: 2000 },
+            { type: 'shooter', x: 770, y: 640, interval: 2500 },
+            { type: 'shooter', x: 3820, y: 620, interval: 2000 },
             // 점프 방해형
             { type: 'jumper', x: 1500, y: 1340, range: 200 },
             // 낙석
@@ -380,9 +380,9 @@ const STAGE_DATA = {
             { type: 'patrol', x: 2600, y: 1240, speed: 90, minX: 2600, maxX: 2750 },
             { type: 'patrol', x: 3500, y: 1240, speed: 100, minX: 3500, maxX: 3630 },
             // 원거리 사격형 (복수)
-            { type: 'shooter', x: 700, y: 830, interval: 2000 },
-            { type: 'shooter', x: 1550, y: 600, interval: 2500 },
-            { type: 'shooter', x: 3250, y: 690, interval: 2000 },
+            { type: 'shooter', x: 150, y: 750, interval: 2000 },
+            { type: 'shooter', x: 1750, y: 450, interval: 2500 },
+            { type: 'shooter', x: 4400, y: 750, interval: 2000 },
             // 점프 방해형
             { type: 'jumper', x: 500, y: 1340, range: 200 },
             { type: 'jumper', x: 1850, y: 1340, range: 250 },
