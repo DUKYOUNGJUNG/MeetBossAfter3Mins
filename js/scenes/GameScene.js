@@ -84,6 +84,14 @@ class GameScene extends Phaser.Scene {
         // 아이템 수집
         this.physics.add.overlap(this.player, this.items, this.collectItem, null, this);
 
+        // 적
+        this.enemies = this.physics.add.group();
+        this.projectiles = this.physics.add.group();
+        this.createEnemies();
+        this.physics.add.collider(this.enemies, this.platforms);
+        this.physics.add.overlap(this.player, this.enemies, this.onEnemyHit, null, this);
+        this.physics.add.overlap(this.player, this.projectiles, this.onEnemyHit, null, this);
+
         // 타이머
         this.timeLeft = sd.timeLimit;
         this.timerEvent = this.time.addEvent({
@@ -157,6 +165,7 @@ class GameScene extends Phaser.Scene {
         this.platforms.getChildren().forEach(p => this.uiCamera.ignore(p));
         this.items.getChildren().forEach(i => this.uiCamera.ignore(i));
         this.uiCamera.ignore(this.player);
+        this.enemies.getChildren().forEach(e => this.uiCamera.ignore(e));
 
         // 터치 컨트롤
         this.createTouchControls();
@@ -239,6 +248,237 @@ class GameScene extends Phaser.Scene {
             });
             if (this.uiCamera) this.uiCamera.ignore(item);
         });
+    }
+
+    createEnemies() {
+        const sd = this.stageData;
+        if (!sd.enemies || sd.enemies.length === 0) return;
+
+        // 적 텍스처 생성
+        if (!this.textures.exists('enemy_walk')) {
+            const g = this.add.graphics();
+            g.fillStyle(0xff4444);
+            g.fillRect(0, 0, 28, 28);
+            g.fillStyle(0xcc0000);
+            g.fillRect(4, 4, 20, 20);
+            // 눈
+            g.fillStyle(0xffffff);
+            g.fillRect(8, 8, 6, 6);
+            g.fillRect(16, 8, 6, 6);
+            g.generateTexture('enemy_walk', 28, 28);
+            g.destroy();
+        }
+        if (!this.textures.exists('enemy_jump')) {
+            const g = this.add.graphics();
+            g.fillStyle(0xff8800);
+            g.fillRect(0, 0, 24, 32);
+            g.fillStyle(0xcc6600);
+            g.fillRect(3, 3, 18, 26);
+            g.fillStyle(0xffffff);
+            g.fillRect(6, 8, 5, 5);
+            g.fillRect(13, 8, 5, 5);
+            g.generateTexture('enemy_jump', 24, 32);
+            g.destroy();
+        }
+        if (!this.textures.exists('enemy_shooter')) {
+            const g = this.add.graphics();
+            g.fillStyle(0x8844ff);
+            g.fillRect(0, 0, 30, 30);
+            g.fillStyle(0x6622cc);
+            g.fillRect(4, 4, 22, 22);
+            g.fillStyle(0xffffff);
+            g.fillRect(8, 8, 6, 6);
+            g.fillRect(18, 8, 6, 6);
+            g.generateTexture('enemy_shooter', 30, 30);
+            g.destroy();
+        }
+        if (!this.textures.exists('projectile')) {
+            const g = this.add.graphics();
+            g.fillStyle(0xff00ff);
+            g.fillCircle(5, 5, 5);
+            g.generateTexture('projectile', 10, 10);
+            g.destroy();
+        }
+        if (!this.textures.exists('falling_obj')) {
+            const g = this.add.graphics();
+            g.fillStyle(0x888888);
+            g.fillTriangle(10, 0, 0, 20, 20, 20);
+            g.generateTexture('falling_obj', 20, 20);
+            g.destroy();
+        }
+        if (!this.textures.exists('spike')) {
+            const g = this.add.graphics();
+            g.fillStyle(0xaa4444);
+            g.fillTriangle(12, 0, 0, 24, 24, 24);
+            g.generateTexture('spike', 24, 24);
+            g.destroy();
+        }
+
+        sd.enemies.forEach(eData => {
+            let enemy;
+            switch (eData.type) {
+                case 'walker':
+                    enemy = this.enemies.create(eData.x, eData.y, 'enemy_walk');
+                    enemy.setData('type', 'walker');
+                    enemy.setData('speed', eData.speed || 60);
+                    enemy.setData('dir', eData.dir || 1);
+                    enemy.body.setSize(28, 28);
+                    enemy.setVelocityX((eData.speed || 60) * (eData.dir || 1));
+                    break;
+
+                case 'patrol':
+                    enemy = this.enemies.create(eData.x, eData.y, 'enemy_walk');
+                    enemy.setData('type', 'patrol');
+                    enemy.setData('speed', eData.speed || 80);
+                    enemy.setData('minX', eData.minX);
+                    enemy.setData('maxX', eData.maxX);
+                    enemy.setData('dir', 1);
+                    enemy.body.setSize(28, 28);
+                    enemy.setVelocityX(eData.speed || 80);
+                    break;
+
+                case 'jumper':
+                    enemy = this.enemies.create(eData.x, eData.y, 'enemy_jump');
+                    enemy.setData('type', 'jumper');
+                    enemy.setData('range', eData.range || 200);
+                    enemy.setData('baseY', eData.y);
+                    enemy.body.setSize(24, 32);
+                    enemy.body.allowGravity = true;
+                    break;
+
+                case 'shooter':
+                    enemy = this.enemies.create(eData.x, eData.y, 'enemy_shooter');
+                    enemy.setData('type', 'shooter');
+                    enemy.setData('interval', eData.interval || 2000);
+                    enemy.setData('lastShot', 0);
+                    enemy.body.setSize(30, 30);
+                    enemy.body.allowGravity = false;
+                    enemy.body.immovable = true;
+                    break;
+
+                case 'falling':
+                    enemy = this.enemies.create(eData.x, eData.y, 'falling_obj');
+                    enemy.setData('type', 'falling');
+                    enemy.setData('triggerX', eData.triggerX || eData.x);
+                    enemy.setData('triggered', false);
+                    enemy.body.allowGravity = false;
+                    enemy.body.setSize(20, 20);
+                    break;
+
+                case 'spike':
+                    enemy = this.enemies.create(eData.x, eData.y, 'spike');
+                    enemy.setData('type', 'spike');
+                    enemy.setData('interval', eData.interval || 3000);
+                    enemy.setData('baseY', eData.y);
+                    enemy.setData('active', false);
+                    enemy.body.allowGravity = false;
+                    enemy.body.immovable = true;
+                    enemy.body.setSize(24, 24);
+                    enemy.setAlpha(0.3);
+                    break;
+            }
+
+            if (enemy && this.uiCamera) {
+                this.uiCamera.ignore(enemy);
+            }
+        });
+    }
+
+    updateEnemies(time) {
+        this.enemies.getChildren().forEach(enemy => {
+            const type = enemy.getData('type');
+
+            switch (type) {
+                case 'patrol': {
+                    const minX = enemy.getData('minX');
+                    const maxX = enemy.getData('maxX');
+                    const speed = enemy.getData('speed');
+                    if (enemy.x >= maxX) {
+                        enemy.setVelocityX(-speed);
+                        enemy.setFlipX(true);
+                    } else if (enemy.x <= minX) {
+                        enemy.setVelocityX(speed);
+                        enemy.setFlipX(false);
+                    }
+                    break;
+                }
+
+                case 'jumper': {
+                    const range = enemy.getData('range');
+                    const dist = Math.abs(this.player.x - enemy.x);
+                    const onGround = enemy.body.touching.down || enemy.body.blocked.down;
+                    if (dist < range && onGround) {
+                        enemy.setVelocityY(-350);
+                    }
+                    break;
+                }
+
+                case 'shooter': {
+                    const interval = enemy.getData('interval');
+                    const lastShot = enemy.getData('lastShot');
+                    if (time - lastShot > interval) {
+                        enemy.setData('lastShot', time);
+                        const dir = this.player.x < enemy.x ? -1 : 1;
+                        const proj = this.projectiles.create(enemy.x + dir * 20, enemy.y, 'projectile');
+                        proj.setVelocityX(200 * dir);
+                        proj.body.allowGravity = false;
+                        if (this.uiCamera) this.uiCamera.ignore(proj);
+                        // 3초 후 자동 삭제
+                        this.time.delayedCall(3000, () => { if (proj.active) proj.destroy(); });
+                    }
+                    break;
+                }
+
+                case 'falling': {
+                    if (!enemy.getData('triggered')) {
+                        const triggerX = enemy.getData('triggerX');
+                        if (Math.abs(this.player.x - triggerX) < 80) {
+                            enemy.setData('triggered', true);
+                            enemy.body.allowGravity = true;
+                            // 3초 후 삭제
+                            this.time.delayedCall(3000, () => { if (enemy.active) enemy.destroy(); });
+                        }
+                    }
+                    break;
+                }
+
+                case 'spike': {
+                    const interval = enemy.getData('interval');
+                    const phase = time % interval;
+                    const baseY = enemy.getData('baseY');
+                    if (phase < interval * 0.3) {
+                        // 솟아오름
+                        if (!enemy.getData('active')) {
+                            enemy.setData('active', true);
+                            enemy.setAlpha(1);
+                            enemy.setY(baseY - 20);
+                        }
+                    } else if (phase > interval * 0.7) {
+                        // 내려감
+                        if (enemy.getData('active')) {
+                            enemy.setData('active', false);
+                            enemy.setAlpha(0.3);
+                            enemy.setY(baseY);
+                        }
+                    }
+                    break;
+                }
+            }
+        });
+    }
+
+    onEnemyHit(player, enemy) {
+        if (this.isRespawning) return;
+        this.takeDamage();
+
+        // 투사체는 접촉 시 삭제
+        if (enemy.getData && !enemy.getData('type')) {
+            enemy.destroy();
+        }
+        // projectile 그룹의 것이면 삭제
+        if (this.projectiles.contains(enemy)) {
+            enemy.destroy();
+        }
     }
 
     collectItem(player, item) {
@@ -424,6 +664,7 @@ class GameScene extends Phaser.Scene {
 
     update(time, delta) {
         this.checkTouchInput();
+        this.updateEnemies(time);
         const dt = delta / 1000;
         const onGround = this.player.body.touching.down || this.player.body.blocked.down;
 

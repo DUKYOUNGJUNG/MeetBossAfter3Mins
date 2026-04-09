@@ -57,6 +57,7 @@ const STAGE_DATA = {
             { x: 2810, y: 650, name: '농민의 편지' },
         ],
         itemPresets: null,
+        enemies: [],  // N1: 적 없음
     },
 
     normal_2: {
@@ -116,6 +117,15 @@ const STAGE_DATA = {
             { x: 3160, y: 730, name: '가문 연대기' },
         ],
         itemPresets: null,
+        enemies: [
+            // 전진형: 바닥을 걸어감
+            { type: 'walker', x: 600, y: 1140, speed: 60, dir: 1 },
+            { type: 'walker', x: 2000, y: 1140, speed: 70, dir: -1 },
+            // 왕복형: 플랫폼 위를 왔다갔다
+            { type: 'patrol', x: 1100, y: 930, speed: 80, minX: 1100, maxX: 1420 },
+            { type: 'patrol', x: 2250, y: 820, speed: 70, minX: 2250, maxX: 2390 },
+            { type: 'patrol', x: 2950, y: 850, speed: 90, minX: 2950, maxX: 3070 },
+        ],
     },
 
     normal_3: {
@@ -187,6 +197,21 @@ const STAGE_DATA = {
             { x: 3410, y: 570, name: '어머니의 편지' },
         ],
         itemPresets: null,
+        enemies: [
+            // 왕복형
+            { type: 'patrol', x: 550, y: 1020, speed: 80, minX: 550, maxX: 670 },
+            { type: 'patrol', x: 1500, y: 820, speed: 90, minX: 1500, maxX: 1650 },
+            // 점프 방해형
+            { type: 'jumper', x: 1000, y: 1140, range: 200 },
+            { type: 'jumper', x: 2500, y: 1140, range: 250 },
+            // 낙석
+            { type: 'falling', x: 1650, y: 400, triggerX: 1650 },
+            { type: 'falling', x: 2800, y: 600, triggerX: 2900 },
+            { type: 'falling', x: 3400, y: 500, triggerX: 3350 },
+            // 솟아나는 가시
+            { type: 'spike', x: 850, y: 1145, interval: 3000 },
+            { type: 'spike', x: 2100, y: 1145, interval: 2500 },
+        ],
     },
 
     normal_4: {
@@ -253,6 +278,23 @@ const STAGE_DATA = {
             { x: 3560, y: 470, name: '녹음 테이프' },
         ],
         itemPresets: null,
+        enemies: [
+            // 왕복형
+            { type: 'patrol', x: 200, y: 1240, speed: 80, minX: 200, maxX: 350 },
+            { type: 'patrol', x: 2900, y: 1020, speed: 90, minX: 2900, maxX: 3040 },
+            // 원거리 사격형
+            { type: 'shooter', x: 1800, y: 1040, interval: 2500 },
+            { type: 'shooter', x: 3100, y: 900, interval: 2000 },
+            // 점프 방해형
+            { type: 'jumper', x: 1500, y: 1340, range: 200 },
+            // 낙석
+            { type: 'falling', x: 2100, y: 400, triggerX: 2050 },
+            { type: 'falling', x: 3350, y: 500, triggerX: 3300 },
+            { type: 'falling', x: 3550, y: 400, triggerX: 3550 },
+            // 가시
+            { type: 'spike', x: 500, y: 1345, interval: 2500 },
+            { type: 'spike', x: 2600, y: 1345, interval: 3000 },
+        ],
     },
 
     normal_5: {
@@ -287,36 +329,36 @@ const STAGE_DATA = {
             { x: 300, y: 650, w: 140, h: 20 },
             { x: 600, y: 550, w: 120, h: 20 },
             { x: 800, y: 1200, w: 100, h: 20 },
-            // 2영역 (1000~1800) - 수직 미로
+            // 2영역 (1000~1800) - 수직 미로 (갭 최대 110px)
             { x: 1050, y: 1270, w: 130, h: 20 },
-            { x: 1250, y: 1150, w: 120, h: 20 },
-            { x: 1050, y: 1030, w: 100, h: 20 },
-            { x: 1300, y: 920, w: 140, h: 20 },
-            { x: 1500, y: 810, w: 120, h: 20 },
-            { x: 1300, y: 700, w: 100, h: 20 },
-            { x: 1550, y: 600, w: 130, h: 20 },
-            { x: 1700, y: 500, w: 100, h: 20 },
-            // 3영역 (1800~2500) - 대시 구간
+            { x: 1250, y: 1160, w: 120, h: 20 },
+            { x: 1050, y: 1050, w: 100, h: 20 },
+            { x: 1300, y: 940, w: 140, h: 20 },
+            { x: 1500, y: 840, w: 120, h: 20 },
+            { x: 1300, y: 730, w: 100, h: 20 },
+            { x: 1550, y: 630, w: 130, h: 20 },
+            { x: 1700, y: 530, w: 100, h: 20 },
+            // 3영역 (1800~2500) - 대시 구간 (갭 최대 110px)
             { x: 1850, y: 1270, w: 140, h: 20 },
-            { x: 2100, y: 1150, w: 120, h: 20 },
-            { x: 1900, y: 1020, w: 130, h: 20 },
-            { x: 2150, y: 900, w: 100, h: 20 },
-            { x: 2350, y: 780, w: 120, h: 20 },
-            // 4영역 (2500~3400) - 역주행 + 숨겨진 경로
+            { x: 2100, y: 1160, w: 120, h: 20 },
+            { x: 1900, y: 1050, w: 130, h: 20 },
+            { x: 2150, y: 940, w: 100, h: 20 },
+            { x: 2350, y: 830, w: 120, h: 20 },
+            // 4영역 (2500~3400) - 역주행 + 숨겨진 경로 (갭 최대 110px)
             { x: 2600, y: 1270, w: 150, h: 20 },
-            { x: 2800, y: 1150, w: 120, h: 20 },
-            { x: 3000, y: 1020, w: 140, h: 20 },
-            { x: 2800, y: 880, w: 100, h: 20 },
-            { x: 3050, y: 760, w: 130, h: 20 },
-            { x: 3250, y: 650, w: 120, h: 20 },
-            { x: 3050, y: 530, w: 100, h: 20 },
-            { x: 3300, y: 430, w: 140, h: 20 },
-            // 5영역 (3400~4500) - 최종
+            { x: 2800, y: 1160, w: 120, h: 20 },
+            { x: 3000, y: 1050, w: 140, h: 20 },
+            { x: 2800, y: 940, w: 100, h: 20 },
+            { x: 3050, y: 830, w: 130, h: 20 },
+            { x: 3250, y: 720, w: 120, h: 20 },
+            { x: 3050, y: 610, w: 100, h: 20 },
+            { x: 3300, y: 500, w: 140, h: 20 },
+            // 5영역 (3400~4500) - 최종 (갭 최대 110px)
             { x: 3500, y: 1270, w: 130, h: 20 },
-            { x: 3700, y: 1150, w: 120, h: 20 },
-            { x: 3900, y: 1020, w: 150, h: 20 },
-            { x: 4100, y: 900, w: 120, h: 20 },
-            { x: 4300, y: 780, w: 130, h: 20 },
+            { x: 3700, y: 1160, w: 120, h: 20 },
+            { x: 3900, y: 1050, w: 150, h: 20 },
+            { x: 4100, y: 940, w: 120, h: 20 },
+            { x: 4300, y: 830, w: 130, h: 20 },
         ],
         walls: [
             { x: 1000, y: 1100, w: 30, h: 270 },
@@ -325,12 +367,39 @@ const STAGE_DATA = {
         ],
         items: [
             { x: 310, y: 620, name: '감금실 설계도' },
-            { x: 1310, y: 670, name: '에너지 추출 로그' },
-            { x: 2360, y: 750, name: '총수의 연설문' },
-            { x: 3060, y: 500, name: '시설 사고 보고서' },
-            { x: 4310, y: 750, name: '마지막 감시 영상' },
+            { x: 1310, y: 700, name: '에너지 추출 로그' },
+            { x: 2360, y: 800, name: '총수의 연설문' },
+            { x: 3060, y: 580, name: '시설 사고 보고서' },
+            { x: 4310, y: 800, name: '마지막 감시 영상' },
         ],
         itemPresets: null,
+        enemies: [
+            // 왕복형 (고밀도)
+            { type: 'patrol', x: 200, y: 1240, speed: 90, minX: 200, maxX: 340 },
+            { type: 'patrol', x: 1050, y: 1240, speed: 100, minX: 1050, maxX: 1180 },
+            { type: 'patrol', x: 2600, y: 1240, speed: 90, minX: 2600, maxX: 2750 },
+            { type: 'patrol', x: 3500, y: 1240, speed: 100, minX: 3500, maxX: 3630 },
+            // 원거리 사격형 (복수)
+            { type: 'shooter', x: 700, y: 830, interval: 2000 },
+            { type: 'shooter', x: 1550, y: 600, interval: 2500 },
+            { type: 'shooter', x: 3250, y: 690, interval: 2000 },
+            // 점프 방해형
+            { type: 'jumper', x: 500, y: 1340, range: 200 },
+            { type: 'jumper', x: 1850, y: 1340, range: 250 },
+            { type: 'jumper', x: 3000, y: 1340, range: 200 },
+            // 낙석 (많음)
+            { type: 'falling', x: 400, y: 500, triggerX: 400 },
+            { type: 'falling', x: 1300, y: 600, triggerX: 1300 },
+            { type: 'falling', x: 2150, y: 700, triggerX: 2100 },
+            { type: 'falling', x: 3050, y: 400, triggerX: 3050 },
+            { type: 'falling', x: 4100, y: 600, triggerX: 4100 },
+            // 가시 (많음)
+            { type: 'spike', x: 300, y: 1345, interval: 2000 },
+            { type: 'spike', x: 1100, y: 1345, interval: 2500 },
+            { type: 'spike', x: 1900, y: 1345, interval: 2000 },
+            { type: 'spike', x: 2700, y: 1345, interval: 3000 },
+            { type: 'spike', x: 3600, y: 1345, interval: 2000 },
+        ],
     },
 
     // ==========================================
