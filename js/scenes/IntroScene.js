@@ -86,13 +86,13 @@ class IntroScene extends Phaser.Scene {
                                     this.input.once('pointerdown', () => {
                                         this.cameras.main.fadeOut(500, 0, 0, 0);
                                         this.time.delayedCall(500, () => {
-                                            this.scene.start('GameScene');
+                                            this.scene.start('GameScene', { stageId: 'normal_1' });
                                         });
                                     });
                                     this.input.keyboard.once('keydown', () => {
                                         this.cameras.main.fadeOut(500, 0, 0, 0);
                                         this.time.delayedCall(500, () => {
-                                            this.scene.start('GameScene');
+                                            this.scene.start('GameScene', { stageId: 'normal_1' });
                                         });
                                     });
                                 });
