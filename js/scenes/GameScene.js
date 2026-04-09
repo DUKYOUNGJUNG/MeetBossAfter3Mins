@@ -53,9 +53,11 @@ class GameScene extends Phaser.Scene {
 
         // 플레이어
         this.player = this.physics.add.sprite(sd.spawn.x, sd.spawn.y, 'player');
-        this.player.setCollideWorldBounds(true);
         this.player.setBounce(0);
         this.player.setMaxVelocity(MOVE_SPEED, 900);
+
+        // 피격/낙사 상태
+        this.isRespawning = false;
 
         // 대시 상태
         this.isDashing = false;
@@ -95,9 +97,9 @@ class GameScene extends Phaser.Scene {
         this.cursors = this.input.keyboard.createCursorKeys();
         this.dashKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
-        // 카메라
+        // 카메라 (월드 바운드 아래 여유 줘서 낙사 감지)
         this.cameras.main.setBounds(0, 0, mapW, mapH);
-        this.physics.world.setBounds(0, 0, mapW, mapH);
+        this.physics.world.setBounds(0, 0, mapW, mapH + 300);
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
         this.cameras.main.setZoom(1.3);
 
@@ -501,8 +503,85 @@ class GameScene extends Phaser.Scene {
             this.doDash();
         }
 
+        // 낙사 감지
+        if (this.player.y > this.stageData.map.height + 50) {
+            this.takeDamage();
+        }
+
         this.prevJumpInput = jumpInput;
         this.prevDashInput = this.touchDash;
         this.wasOnGround = onGround;
+    }
+
+    // 피격/낙사 공통 처리: 시간 -10초 + 스폰 리스폰
+    takeDamage() {
+        if (this.isRespawning) return;
+        this.isRespawning = true;
+
+        const PENALTY = 10;
+        const sd = this.stageData;
+
+        // 시간 감소
+        this.timeLeft = Math.max(0, this.timeLeft - PENALTY);
+        this.timerText.setText(this.formatTime(this.timeLeft));
+
+        // 시간 초과 체크
+        if (this.timeLeft <= 0) {
+            this.timerEvent.remove();
+            this.scene.start('BossScene', { stageId: this.stageId });
+            return;
+        }
+
+        // 타이머 색상 업데이트
+        if (this.timeLeft <= 30) {
+            this.timerText.setColor('#ff4444');
+        } else if (this.timeLeft <= 60) {
+            this.timerText.setColor('#ffaa00');
+        }
+
+        // 패널티 텍스트
+        const penaltyText = this.add.text(400, 200, `-${PENALTY}초`, {
+            fontSize: '32px',
+            fontFamily: 'monospace',
+            color: '#ff4444',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setAlpha(0);
+
+        this.uiLayer.add(penaltyText);
+        this.cameras.main.ignore(penaltyText);
+
+        this.tweens.add({
+            targets: penaltyText,
+            alpha: 1, y: 180,
+            duration: 300,
+            onComplete: () => {
+                this.time.delayedCall(800, () => {
+                    this.tweens.add({
+                        targets: penaltyText,
+                        alpha: 0, y: 160,
+                        duration: 300,
+                        onComplete: () => penaltyText.destroy()
+                    });
+                });
+            }
+        });
+
+        // 화면 빨간 플래시
+        this.cameras.main.flash(300, 255, 0, 0, true);
+
+        // 리스폰
+        this.player.setPosition(sd.spawn.x, sd.spawn.y);
+        this.player.setVelocity(0, 0);
+        this.isDashing = false;
+        this.player.body.allowGravity = true;
+        this.player.setAlpha(1);
+
+        // 잠깐 무적 (깜빡임)
+        this.player.setAlpha(0.5);
+        this.time.delayedCall(1000, () => {
+            this.player.setAlpha(1);
+            this.isRespawning = false;
+        });
     }
 }
