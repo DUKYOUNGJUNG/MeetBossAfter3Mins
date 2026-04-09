@@ -151,7 +151,7 @@ class ClearScene extends Phaser.Scene {
                     });
 
                     const goStart = () => {
-                        this.scene.start('TutorialScene');
+                        this.scene.start('StageSelectScene');
                     };
                     this.input.once('pointerdown', goStart);
                     this.input.keyboard.once('keydown', goStart);

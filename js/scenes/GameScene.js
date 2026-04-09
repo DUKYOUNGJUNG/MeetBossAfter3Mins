@@ -220,10 +220,14 @@ class GameScene extends Phaser.Scene {
             ig.destroy();
         }
 
-        itemPositions.forEach(pos => {
+        // 아이템 이름 배열 (노멀: 각 아이템에 name 포함, 레드: itemNames 배열)
+        const itemNames = sd.itemNames || itemPositions.map(p => p.name || '???');
+
+        itemPositions.forEach((pos, idx) => {
             const item = this.items.create(pos.x, pos.y, 'item');
             item.setDisplaySize(24, 24);
             item.refreshBody();
+            item.setData('itemName', itemNames[idx] || pos.name || '???');
             this.tweens.add({
                 targets: item,
                 alpha: 0.5,
@@ -236,18 +240,50 @@ class GameScene extends Phaser.Scene {
     }
 
     collectItem(player, item) {
+        const itemName = item.getData('itemName');
         item.destroy();
         this.collectedCount++;
         this.itemText.setText(`🔑 ${this.collectedCount} / ${this.totalItems}`);
 
+        // 수집 이펙트
         const flash = this.add.circle(item.x, item.y, 20, 0xffd700, 0.8);
         if (this.uiCamera) this.uiCamera.ignore(flash);
         this.tweens.add({
             targets: flash,
-            scale: 2,
-            alpha: 0,
-            duration: 300,
+            scale: 2, alpha: 0, duration: 300,
             onComplete: () => flash.destroy()
+        });
+
+        // 아이템 이름 팝업 (UI 레이어, 화면 중앙 상단)
+        const namePopup = this.add.text(400, 140, `📜 ${itemName}`, {
+            fontSize: '18px',
+            fontFamily: 'monospace',
+            color: '#ffd700',
+            stroke: '#000000',
+            strokeThickness: 3,
+            backgroundColor: '#00000088',
+            padding: { x: 12, y: 6 }
+        }).setOrigin(0.5).setAlpha(0);
+
+        this.uiLayer.add(namePopup);
+        this.cameras.main.ignore(namePopup);
+
+        // 등장 → 1.5초 유지 → 사라짐
+        this.tweens.add({
+            targets: namePopup,
+            alpha: 1, y: 130,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+                this.time.delayedCall(1500, () => {
+                    this.tweens.add({
+                        targets: namePopup,
+                        alpha: 0, y: 120,
+                        duration: 300,
+                        onComplete: () => namePopup.destroy()
+                    });
+                });
+            }
         });
 
         if (this.collectedCount >= this.totalItems) {
