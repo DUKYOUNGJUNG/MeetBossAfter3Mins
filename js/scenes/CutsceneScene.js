@@ -20,6 +20,7 @@ class CutsceneScene extends Phaser.Scene {
         this.nextData = data.nextData || {};
         this.bgColor = data.bgColor || '#000000';
         this.typewriter = data.typewriter || false;
+        this.showReset = data.showReset || false;
     }
 
     create() {
@@ -46,6 +47,18 @@ class CutsceneScene extends Phaser.Scene {
         if (this.currentIndex >= this.sequence.length) {
             if (!this.nextScene) {
                 // 끝. 조작 불가 (진엔딩 후)
+                if (this.showReset) {
+                    // 초기화 버튼만 작게
+                    this.time.delayedCall(5000, () => {
+                        const resetBtn = this.add.text(W / 2, H - 30, '🔄 처음부터', {
+                            fontSize: '12px', fontFamily: 'monospace', color: '#333333'
+                        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+                        resetBtn.on('pointerdown', () => {
+                            StageProgress.reset();
+                            this.scene.start('BootScene');
+                        });
+                    });
+                }
                 return;
             }
             // 시퀀스 끝 — 탭하여 계속

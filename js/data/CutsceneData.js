@@ -314,7 +314,7 @@ const CUTSCENE_DATA = {
             { text: null, duration: 2000 },
             { text: '아무 일도 일어나지 않는다.', duration: 99999, color: '#666666', size: '18px', y: 300 },
         ],
-        // 여기서 끝. 조작 불가.
+        // 여기서 끝. 조작 불가. (초기화는 BootScene에서 처리)
         nextScene: null,
     },
 };
