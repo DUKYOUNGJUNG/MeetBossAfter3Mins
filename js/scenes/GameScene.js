@@ -665,7 +665,7 @@ class GameScene extends Phaser.Scene {
 
         if (this.timeLeft <= 0) {
             this.timerEvent.remove();
-            this.scene.start('BossScene', { stageId: this.stageId });
+            this.showBossIntro();
         }
     }
 
@@ -767,6 +767,56 @@ class GameScene extends Phaser.Scene {
         this.wasOnGround = onGround;
     }
 
+    // 보스전 인트로 (탭하면 시작)
+    showBossIntro() {
+        this.physics.pause();
+        this.isRespawning = true; // 입력 차단용
+
+        // 화면 흔들림
+        this.cameras.main.shake(500, 0.03);
+
+        // 어두운 오버레이
+        const overlay = this.add.rectangle(400, 300, 800, 600, 0x000000, 0).setDepth(200);
+        overlay.setScrollFactor(0);
+        this.tweens.add({ targets: overlay, alpha: 0.7, duration: 500 });
+
+        // BOSS 글자
+        const bossText = this.add.text(400, 250, 'BOSS', {
+            fontSize: '72px',
+            fontFamily: 'monospace',
+            color: '#ff0000',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5).setAlpha(0).setDepth(201).setScrollFactor(0);
+
+        this.tweens.add({
+            targets: bossText,
+            alpha: 1, scaleX: 1.1, scaleY: 1.1,
+            duration: 800,
+            ease: 'Power2'
+        });
+
+        // 탭하여 시작
+        this.time.delayedCall(1500, () => {
+            const tapText = this.add.text(400, 380, '탭하여 보스전 시작', {
+                fontSize: '20px',
+                fontFamily: 'monospace',
+                color: '#aaaaaa'
+            }).setOrigin(0.5).setDepth(201).setScrollFactor(0);
+
+            this.tweens.add({
+                targets: tapText,
+                alpha: 0.3, duration: 800, yoyo: true, repeat: -1
+            });
+
+            const startBoss = () => {
+                this.scene.start('BossScene', { stageId: this.stageId });
+            };
+            this.input.once('pointerdown', startBoss);
+            this.input.keyboard.once('keydown', startBoss);
+        });
+    }
+
     // 피격/낙사 공통 처리: 시간 -10초 + 스폰 리스폰
     takeDamage() {
         if (this.isRespawning) return;
@@ -782,7 +832,7 @@ class GameScene extends Phaser.Scene {
         // 시간 초과 체크
         if (this.timeLeft <= 0) {
             this.timerEvent.remove();
-            this.scene.start('BossScene', { stageId: this.stageId });
+            this.showBossIntro();
             return;
         }
 
