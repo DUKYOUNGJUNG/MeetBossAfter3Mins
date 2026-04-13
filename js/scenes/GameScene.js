@@ -140,6 +140,12 @@ class GameScene extends Phaser.Scene {
             strokeThickness: 2
         }).setOrigin(0.5, 0);
 
+        // 생명력 표시
+        const lives = StageProgress.getLives();
+        const livesText = this.add.text(16, 44, '❤'.repeat(lives) + '🖤'.repeat(3 - lives), {
+            fontSize: '18px'
+        });
+
         // 아이템 카운터
         this.itemText = this.add.text(16, 16, '🔑 0 / 5', {
             fontSize: '22px',
@@ -156,7 +162,7 @@ class GameScene extends Phaser.Scene {
         }).setOrigin(1, 0);
 
         // UI 컨테이너
-        this.uiLayer.add([this.timerText, stageInfo, versionText, this.itemText]);
+        this.uiLayer.add([this.timerText, stageInfo, versionText, this.itemText, livesText]);
 
         // 메인 카메라는 UI 무시
         this.cameras.main.ignore(this.uiLayer);
@@ -164,6 +170,7 @@ class GameScene extends Phaser.Scene {
         this.cameras.main.ignore(stageInfo);
         this.cameras.main.ignore(versionText);
         this.cameras.main.ignore(this.itemText);
+        this.cameras.main.ignore(livesText);
 
         // UI 카메라는 게임 오브젝트 무시
         this.platforms.getChildren().forEach(p => this.uiCamera.ignore(p));

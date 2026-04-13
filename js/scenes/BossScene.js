@@ -137,6 +137,12 @@ class BossScene extends Phaser.Scene {
             this.lastAttack = 0;
         });
 
+        // 생명력 표시
+        const lives = StageProgress.getLives();
+        this.livesText = this.add.text(20, 20, '❤'.repeat(lives), {
+            fontSize: '24px'
+        });
+
         // 생존 타이머 (60초)
         this.surviveTime = 60;
         this.surviveTimer = this.add.text(BOSS_W / 2, 20, this.surviveTime.toString(), {
@@ -202,36 +208,72 @@ class BossScene extends Phaser.Scene {
 
     showDeath() {
         this.bossActive = false;
+        if (this.surviveEvent) this.surviveEvent.remove();
         this.player.setVelocity(0, 0);
         this.player.body.allowGravity = false;
 
+        // 생명력 감소
+        const isGameOver = StageProgress.loseLife();
+        const remainLives = StageProgress.getLives();
+
         // 암전
         const blackout = this.add.rectangle(600, 300, 1200, 600, 0x000000, 0).setDepth(100);
-        this.tweens.add({
-            targets: blackout, alpha: 0.8, duration: 500
-        });
+        this.tweens.add({ targets: blackout, alpha: 0.8, duration: 500 });
 
-        const deathText = this.add.text(600, 250, '사망...', {
+        const deathText = this.add.text(600, 220, '사망...', {
             fontSize: '48px', fontFamily: 'monospace',
             color: '#ffffff', stroke: '#000000', strokeThickness: 6
         }).setOrigin(0.5).setAlpha(0).setDepth(101);
 
         this.tweens.add({ targets: deathText, alpha: 1, duration: 800 });
 
-        this.time.delayedCall(2000, () => {
-            const goText = this.add.text(600, 400, '탭하여 스테이지 선택으로', {
-                fontSize: '22px', color: '#aaaaaa'
-            }).setOrigin(0.5).setDepth(101);
+        // 남은 생명력 표시
+        const livesDisplay = this.add.text(600, 290,
+            isGameOver ? '💀 생명력 소진' : `❤ 남은 생명력: ${'❤'.repeat(remainLives)}`, {
+            fontSize: '22px', fontFamily: 'monospace',
+            color: isGameOver ? '#ff4444' : '#ff8888'
+        }).setOrigin(0.5).setAlpha(0).setDepth(101);
 
-            this.tweens.add({
-                targets: goText, alpha: 0.3, duration: 800, yoyo: true, repeat: -1
-            });
+        this.tweens.add({ targets: livesDisplay, alpha: 1, duration: 800, delay: 500 });
 
-            const goSelect = () => {
-                this.scene.start('StageSelectScene');
-            };
-            this.input.once('pointerdown', goSelect);
-            this.input.keyboard.once('keydown', goSelect);
+        this.time.delayedCall(2500, () => {
+            if (isGameOver) {
+                // 게임 오버
+                const goText = this.add.text(600, 380, 'GAME OVER', {
+                    fontSize: '36px', fontFamily: 'monospace',
+                    color: '#ff0000', stroke: '#000000', strokeThickness: 4
+                }).setOrigin(0.5).setDepth(101);
+
+                const restartText = this.add.text(600, 440, '탭하여 처음부터 다시 시작', {
+                    fontSize: '18px', color: '#aaaaaa'
+                }).setOrigin(0.5).setDepth(101);
+
+                this.tweens.add({
+                    targets: restartText, alpha: 0.3, duration: 800, yoyo: true, repeat: -1
+                });
+
+                const doGameOver = () => {
+                    StageProgress.gameOver();
+                    this.scene.start('StageSelectScene');
+                };
+                this.input.once('pointerdown', doGameOver);
+                this.input.keyboard.once('keydown', doGameOver);
+            } else {
+                // 생명력 남아있음 → 스테이지 선택
+                const goText = this.add.text(600, 400, '탭하여 스테이지 선택으로', {
+                    fontSize: '22px', color: '#aaaaaa'
+                }).setOrigin(0.5).setDepth(101);
+
+                this.tweens.add({
+                    targets: goText, alpha: 0.3, duration: 800, yoyo: true, repeat: -1
+                });
+
+                const goSelect = () => {
+                    this.scene.start('StageSelectScene');
+                };
+                this.input.once('pointerdown', goSelect);
+                this.input.keyboard.once('keydown', goSelect);
+            }
         });
     }
 

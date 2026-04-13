@@ -8,6 +8,7 @@ const StageProgress = {
             currentStage: 'normal_1',
             cleared: {},
             tutorialDone: false,
+            lives: 3,
             normalComplete: false,
             redUnlocked: false,
             redComplete: false,
@@ -63,6 +64,32 @@ const StageProgress = {
             return order[idx + 1];
         }
         return null; // 마지막 스테이지
+    },
+
+    // 생명력 감소 (보스전 사망 시). true 반환 = 게임 오버
+    loseLife() {
+        const progress = this.load();
+        progress.lives = Math.max(0, (progress.lives || 3) - 1);
+        this.save(progress);
+        return progress.lives <= 0;
+    },
+
+    // 생명력 조회
+    getLives() {
+        const progress = this.load();
+        return progress.lives != null ? progress.lives : 3;
+    },
+
+    // 게임 오버 시 리셋 (클리어 기록 초기화, 생명력 복구, 튜토리얼 유지)
+    gameOver() {
+        const progress = this.load();
+        progress.lives = 3;
+        progress.cleared = {};
+        progress.normalComplete = false;
+        progress.redUnlocked = false;
+        progress.redComplete = false;
+        // tutorialDone은 유지
+        this.save(progress);
     },
 
     // 해금 여부

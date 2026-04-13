@@ -31,6 +31,12 @@ class StageSelectScene extends Phaser.Scene {
             fontSize: '14px', fontFamily: 'monospace', color: '#888888'
         }).setOrigin(0.5);
 
+        // 생명력 표시
+        const lives = StageProgress.getLives();
+        this.add.text(20, 20, '❤'.repeat(lives) + '🖤'.repeat(3 - lives), {
+            fontSize: '24px'
+        });
+
         const stages = STAGE_ORDER.normal;
         const boxSize = 80;
         const gap = 40;
@@ -140,6 +146,12 @@ class StageSelectScene extends Phaser.Scene {
         this.add.text(400, 75, '레드 루트 — 마왕의 과거', {
             fontSize: '14px', fontFamily: 'monospace', color: '#884444'
         }).setOrigin(0.5);
+
+        // 생명력 표시
+        const lives = StageProgress.getLives();
+        this.add.text(20, 20, '❤'.repeat(lives) + '🖤'.repeat(3 - lives), {
+            fontSize: '24px'
+        });
 
         const stages = STAGE_ORDER.red;
         const startX = 120;
