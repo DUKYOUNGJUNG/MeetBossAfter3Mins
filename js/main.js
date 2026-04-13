@@ -19,16 +19,8 @@ const config = {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
-    scene: [TutorialScene, IntroScene, CutsceneScene, StageSelectScene, GameScene, BossScene, ClearScene]
+    // 첫 씬은 BootScene에서 분기
+    scene: [BootScene, IntroScene, CutsceneScene, TutorialScene, StageSelectScene, GameScene, BossScene, ClearScene]
 };
 
 const game = new Phaser.Game(config);
-
-// 튜토리얼 완료 시 바로 스테이지 선택으로 전환
-game.events.once('ready', () => {
-    const progress = StageProgress.load();
-    if (progress.tutorialDone) {
-        game.scene.stop('TutorialScene');
-        game.scene.start('StageSelectScene');
-    }
-});

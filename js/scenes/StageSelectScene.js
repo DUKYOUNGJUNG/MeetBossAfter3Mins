@@ -153,9 +153,17 @@ class StageSelectScene extends Phaser.Scene {
             fontSize: '24px'
         });
 
+        // 노멀 클리어 표시 (위쪽, 비활성)
+        const normalY = 130;
+        this.add.text(400, normalY - 15, '노멀', { fontSize: '10px', fontFamily: 'monospace', color: '#333333' }).setOrigin(0.5);
+        for (let i = 0; i < 5; i++) {
+            this.add.rectangle(200 + i * 100, normalY + 10, 30, 30, 0x111111).setStrokeStyle(1, 0x222222);
+            this.add.text(200 + i * 100, normalY + 10, '✓', { fontSize: '12px', color: '#333333' }).setOrigin(0.5);
+        }
+
         const stages = STAGE_ORDER.red;
         const startX = 120;
-        const centerY = 260;
+        const centerY = 300;
         const stageGap = 140;
 
         // 레드 시대별 색상
@@ -270,23 +278,59 @@ class StageSelectScene extends Phaser.Scene {
         this.add.text(20, 20, '❤'.repeat(lives) + '🖤'.repeat(3 - lives), { fontSize: '24px' });
 
         // 노멀 (위 — 비활성)
-        const normalY = 130;
-        this.add.text(400, normalY - 15, '노멀', { fontSize: '10px', fontFamily: 'monospace', color: '#333333' }).setOrigin(0.5);
+        const normalY = 110;
+        this.add.text(400, normalY - 12, '노멀', { fontSize: '10px', fontFamily: 'monospace', color: '#333333' }).setOrigin(0.5);
         for (let i = 0; i < 5; i++) {
-            this.add.rectangle(200 + i * 100, normalY + 10, 30, 30, 0x111111).setStrokeStyle(1, 0x222222);
-            this.add.text(200 + i * 100, normalY + 10, '✓', { fontSize: '12px', color: '#333333' }).setOrigin(0.5);
+            this.add.rectangle(200 + i * 100, normalY + 10, 25, 25, 0x111111).setStrokeStyle(1, 0x222222);
+            this.add.text(200 + i * 100, normalY + 10, '✓', { fontSize: '10px', color: '#333333' }).setOrigin(0.5);
         }
 
-        // 레드 (중간 — 비활성, 남은 슬롯 표시)
-        const redY = 220;
-        this.add.text(400, redY - 15, '레드', { fontSize: '10px', fontFamily: 'monospace', color: '#442222' }).setOrigin(0.5);
+        // 레드 (중간 — 클리어 1개 + 잔여 4개 표시)
+        const redY = 190;
+        this.add.text(400, redY - 12, '레드', { fontSize: '10px', fontFamily: 'monospace', color: '#442222' }).setOrigin(0.5);
+
+        const redSlots = []; // 진레드 합체 애니메이션용
         for (let i = 0; i < 5; i++) {
-            this.add.rectangle(200 + i * 100, redY + 10, 30, 30, 0x1a0808).setStrokeStyle(1, 0x332222);
-            this.add.text(200 + i * 100, redY + 10, '■', { fontSize: '10px', color: '#442222' }).setOrigin(0.5);
+            const rx = 200 + i * 100;
+            // 클리어된 슬롯 (1개)
+            this.add.rectangle(rx - 20, redY + 10, 16, 16, 0x5C2A2A).setStrokeStyle(1, 0xff4444);
+            // 잔여 4개 슬롯
+            for (let j = 0; j < 4; j++) {
+                const slot = this.add.rectangle(rx - 5 + j * 14, redY + 10, 12, 12, 0x1a0808)
+                    .setStrokeStyle(1, 0x332222);
+                redSlots.push({ slot, targetStage: j, sourceStage: i, rx, j });
+            }
         }
 
         // 진레드 (아래 — 활성)
         const trueRedY = 370;
+
+        // 합체 애니메이션: 첫 진레드 스테이지가 아직 안 깨진 상태면 한 번 재생
+        const firstTrueRedCleared = progress.cleared['true_red_1'];
+        if (!firstTrueRedCleared && !this._mergeAnimPlayed) {
+            this._mergeAnimPlayed = true;
+            // 레드 잔여 슬롯이 진레드 위치로 떨어지는 애니메이션
+            let delay = 500;
+            for (let stageIdx = 0; stageIdx < 5; stageIdx++) {
+                const targetX = 200 + stageIdx * 100;
+                const slotsForStage = redSlots.filter(s => s.targetStage === stageIdx);
+                slotsForStage.forEach((s, k) => {
+                    this.tweens.add({
+                        targets: s.slot,
+                        x: targetX + (k - 1.5) * 14,
+                        y: trueRedY,
+                        duration: 600,
+                        delay: delay + k * 100,
+                        ease: 'Bounce.easeOut',
+                        onComplete: () => {
+                            s.slot.setFillStyle(0x4A1A30);
+                            s.slot.setStrokeStyle(1, 0xff0000);
+                        }
+                    });
+                });
+                delay += 400;
+            }
+        }
         const stages = STAGE_ORDER.true_red;
         const startX = 200;
         const gap = 100;
