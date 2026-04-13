@@ -12,6 +12,8 @@ const StageProgress = {
             normalComplete: false,
             redUnlocked: false,
             redComplete: false,
+            trueRedUnlocked: false,
+            trueRedComplete: false,
         };
     },
 
@@ -49,6 +51,15 @@ const StageProgress = {
         const allRedCleared = STAGE_ORDER.red.every(id => progress.cleared[id]);
         if (allRedCleared) {
             progress.redComplete = true;
+            progress.trueRedUnlocked = true;
+        }
+
+        // 진레드 전체 클리어 체크
+        if (STAGE_ORDER.true_red) {
+            const allTrueRedCleared = STAGE_ORDER.true_red.every(id => progress.cleared[id]);
+            if (allTrueRedCleared) {
+                progress.trueRedComplete = true;
+            }
         }
 
         this.save(progress);
@@ -83,12 +94,26 @@ const StageProgress = {
     // 게임 오버 시 리셋 (클리어 기록 초기화, 생명력 복구, 튜토리얼 유지)
     gameOver() {
         const progress = this.load();
+        const wasInRed = progress.redUnlocked;
+        const wasInTrueRed = progress.trueRedUnlocked;
+
         progress.lives = 3;
-        progress.cleared = {};
-        progress.normalComplete = false;
-        progress.redUnlocked = false;
-        progress.redComplete = false;
-        // tutorialDone은 유지
+
+        if (wasInTrueRed) {
+            // 진레드에서 게임오버 → 진레드 클리어 기록만 리셋
+            STAGE_ORDER.true_red.forEach(id => delete progress.cleared[id]);
+            progress.trueRedComplete = false;
+        } else if (wasInRed) {
+            // 레드에서 게임오버 → 레드 클리어 기록만 리셋 (레드 유지)
+            STAGE_ORDER.red.forEach(id => delete progress.cleared[id]);
+            progress.redComplete = false;
+        } else {
+            // 노멀에서 게임오버 → 노멀 전체 리셋
+            progress.cleared = {};
+            progress.normalComplete = false;
+        }
+
+        // tutorialDone은 항상 유지
         this.save(progress);
     },
 
@@ -108,6 +133,15 @@ const StageProgress = {
             if (stageId === 'red_1') return true;
             // 이전 레드 스테이지 클리어 필요
             const order = STAGE_ORDER.red;
+            const idx = order.indexOf(stageId);
+            return idx > 0 && progress.cleared[order[idx - 1]];
+        }
+
+        // 진레드 루트: 레드 전체 클리어 필요
+        if (stage.route === 'true_red') {
+            if (!progress.trueRedUnlocked) return false;
+            if (stageId === 'true_red_1') return true;
+            const order = STAGE_ORDER.true_red;
             const idx = order.indexOf(stageId);
             return idx > 0 && progress.cleared[order[idx - 1]];
         }

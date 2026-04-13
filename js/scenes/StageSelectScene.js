@@ -7,10 +7,9 @@ class StageSelectScene extends Phaser.Scene {
         const progress = StageProgress.load();
         this.progress = progress;
 
-        // 노멀 완료 후 레드 해금 시 레드 모드
-        this.isRedMode = progress.normalComplete && progress.redUnlocked;
-
-        if (this.isRedMode && !progress.redComplete) {
+        if (progress.trueRedUnlocked) {
+            this.createTrueRedSelect();
+        } else if (progress.redUnlocked && !progress.redComplete) {
             this.createRedSelect();
         } else {
             this.createNormalSelect();
@@ -103,7 +102,7 @@ class StageSelectScene extends Phaser.Scene {
             if (unlocked) {
                 box.setInteractive({ useHandCursor: true });
                 box.on('pointerdown', () => {
-                    this.scene.start('GameScene', { stageId: stageId });
+                    this.scene.start('GameScene', { stageId: stageId, testMode: this._testMode });
                 });
             }
         });
@@ -129,8 +128,9 @@ class StageSelectScene extends Phaser.Scene {
             });
         }
 
-        // 초기화 버튼
+        // 초기화 버튼 + 테스트 모드 버튼
         this.addResetButton();
+        this.addTestModeButton();
     }
 
     createRedSelect() {
@@ -246,8 +246,102 @@ class StageSelectScene extends Phaser.Scene {
             this.scene.restart();
         });
 
-        // 초기화 버튼
+        // 초기화 버튼 + 테스트 모드 버튼
         this.addResetButton();
+        this.addTestModeButton();
+    }
+
+    createTrueRedSelect() {
+        this.cameras.main.setBackgroundColor('#020002');
+        const progress = this.progress;
+
+        // 제목
+        this.add.text(400, 30, '진 레드 루트', {
+            fontSize: '28px', fontFamily: 'monospace',
+            color: '#ff0000', stroke: '#000000', strokeThickness: 3
+        }).setOrigin(0.5);
+
+        this.add.text(400, 60, '"시간"', {
+            fontSize: '14px', fontFamily: 'monospace', color: '#884444'
+        }).setOrigin(0.5);
+
+        // 생명력
+        const lives = StageProgress.getLives();
+        this.add.text(20, 20, '❤'.repeat(lives) + '🖤'.repeat(3 - lives), { fontSize: '24px' });
+
+        // 노멀 (위 — 비활성)
+        const normalY = 130;
+        this.add.text(400, normalY - 15, '노멀', { fontSize: '10px', fontFamily: 'monospace', color: '#333333' }).setOrigin(0.5);
+        for (let i = 0; i < 5; i++) {
+            this.add.rectangle(200 + i * 100, normalY + 10, 30, 30, 0x111111).setStrokeStyle(1, 0x222222);
+            this.add.text(200 + i * 100, normalY + 10, '✓', { fontSize: '12px', color: '#333333' }).setOrigin(0.5);
+        }
+
+        // 레드 (중간 — 비활성, 남은 슬롯 표시)
+        const redY = 220;
+        this.add.text(400, redY - 15, '레드', { fontSize: '10px', fontFamily: 'monospace', color: '#442222' }).setOrigin(0.5);
+        for (let i = 0; i < 5; i++) {
+            this.add.rectangle(200 + i * 100, redY + 10, 30, 30, 0x1a0808).setStrokeStyle(1, 0x332222);
+            this.add.text(200 + i * 100, redY + 10, '■', { fontSize: '10px', color: '#442222' }).setOrigin(0.5);
+        }
+
+        // 진레드 (아래 — 활성)
+        const trueRedY = 370;
+        const stages = STAGE_ORDER.true_red;
+        const startX = 200;
+        const gap = 100;
+
+        stages.forEach((stageId, i) => {
+            const x = startX + i * gap;
+            const sd = STAGE_DATA[stageId];
+            const cleared = progress.cleared[stageId];
+            const unlocked = StageProgress.isUnlocked(stageId);
+
+            // 연결선
+            if (i < stages.length - 1) {
+                const lineColor = cleared ? 0xff0000 : 0x220000;
+                this.add.rectangle(x + gap / 2, trueRedY, gap - 50, 2, lineColor);
+            }
+
+            const boxColor = cleared ? 0x4A1A30 : 0x0a0005;
+            const box = this.add.rectangle(x, trueRedY, 50, 50, boxColor)
+                .setStrokeStyle(2, cleared ? 0xff0000 : (unlocked ? 0x664444 : 0x220000));
+
+            if (cleared) {
+                this.add.text(x, trueRedY, `${sd.stageNumber}`, {
+                    fontSize: '18px', fontFamily: 'monospace', color: '#ff4444'
+                }).setOrigin(0.5);
+            } else if (unlocked) {
+                const q = this.add.text(x, trueRedY, '?', {
+                    fontSize: '24px', fontFamily: 'monospace', color: '#aa4444'
+                }).setOrigin(0.5);
+                this.tweens.add({ targets: q, alpha: 0.3, duration: 600, yoyo: true, repeat: -1 });
+            } else {
+                this.add.text(x, trueRedY, '🔒', { fontSize: '18px' }).setOrigin(0.5);
+            }
+
+            if (unlocked) {
+                box.setInteractive({ useHandCursor: true });
+                box.on('pointerdown', () => {
+                    // 진레드 시작 전 다짐 컷씬
+                    const startCutscene = CUTSCENE_DATA[`true_red_${sd.stageNumber}_start`];
+                    if (startCutscene) {
+                        const csData = { ...startCutscene, nextScene: 'GameScene', nextData: { stageId: stageId, testMode: this._testMode } };
+                        this.scene.start('CutsceneScene', csData);
+                    } else {
+                        this.scene.start('GameScene', { stageId: stageId, testMode: this._testMode });
+                    }
+                });
+            }
+        });
+
+        // 하단
+        const hint = this.add.text(400, 500, '스테이지를 탭하여 시작', {
+            fontSize: '13px', fontFamily: 'monospace', color: '#664444'
+        }).setOrigin(0.5);
+
+        this.addResetButton();
+        this.addTestModeButton();
     }
 
     addResetButton() {
@@ -259,6 +353,20 @@ class StageSelectScene extends Phaser.Scene {
         resetBtn.on('pointerdown', () => {
             StageProgress.reset();
             this.scene.start('TutorialScene');
+        });
+    }
+
+    addTestModeButton() {
+        if (!this._testMode) this._testMode = false;
+        const btn = this.add.text(20, 580, this._testMode ? '🧪 테스트 ON' : '🧪 테스트 OFF', {
+            fontSize: '14px', fontFamily: 'monospace',
+            color: this._testMode ? '#00ff88' : '#666666'
+        }).setOrigin(0, 1).setInteractive({ useHandCursor: true });
+
+        btn.on('pointerdown', () => {
+            this._testMode = !this._testMode;
+            btn.setText(this._testMode ? '🧪 테스트 ON' : '🧪 테스트 OFF');
+            btn.setColor(this._testMode ? '#00ff88' : '#666666');
         });
     }
 
@@ -313,7 +421,7 @@ class StageSelectScene extends Phaser.Scene {
                     onComplete: () => {
                         this.cameras.main.fadeOut(500, 0, 0, 0);
                         this.time.delayedCall(500, () => {
-                            this.scene.start('GameScene', { stageId: stageId });
+                            this.scene.start('GameScene', { stageId: stageId, testMode: this._testMode });
                         });
                     }
                 });

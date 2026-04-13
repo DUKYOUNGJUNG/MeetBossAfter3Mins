@@ -25,6 +25,8 @@ class GameScene extends Phaser.Scene {
         // stageId가 없으면 기본값
         this.stageId = data && data.stageId ? data.stageId : 'normal_1';
         this.stageData = STAGE_DATA[this.stageId];
+        // 테스트 모드: 아이템을 스폰 옆에 모아놓기
+        this.testMode = data && data.testMode ? true : false;
     }
 
     create() {
@@ -240,6 +242,17 @@ class GameScene extends Phaser.Scene {
             ig.fillCircle(12, 12, 8);
             ig.generateTexture('item', 24, 24);
             ig.destroy();
+        }
+
+        // 테스트 모드: 아이템을 스폰 옆에 모아놓기
+        if (this.testMode) {
+            const spawnX = sd.spawn.x;
+            const spawnY = sd.spawn.y;
+            itemPositions = itemPositions.map((p, i) => ({
+                ...p,
+                x: spawnX + 50 + i * 30,
+                y: spawnY - 20
+            }));
         }
 
         // 아이템 이름 배열 (노멀: 각 아이템에 name 포함, 레드: itemNames 배열)

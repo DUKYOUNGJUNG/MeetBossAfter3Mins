@@ -232,8 +232,8 @@ class TutorialScene extends Phaser.Scene {
             const progress = StageProgress.load();
             progress.tutorialDone = true;
             StageProgress.save(progress);
-            // 골! → 인트로 컷씬
-            this.scene.start('IntroScene');
+            // 골! → 옥상 마왕 조우 컷씬
+            this.scene.start('CutsceneScene', CUTSCENE_DATA.rooftop);
             return;
         }
 

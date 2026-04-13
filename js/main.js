@@ -19,7 +19,7 @@ const config = {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
-    scene: [TutorialScene, IntroScene, StageSelectScene, GameScene, BossScene, ClearScene]
+    scene: [TutorialScene, IntroScene, CutsceneScene, StageSelectScene, GameScene, BossScene, ClearScene]
 };
 
 const game = new Phaser.Game(config);
