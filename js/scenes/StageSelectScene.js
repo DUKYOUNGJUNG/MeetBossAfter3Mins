@@ -193,7 +193,7 @@ class StageSelectScene extends Phaser.Scene {
                 color: cleared ? '#ff6666' : '#555555'
             }).setOrigin(0.5);
 
-            // 5개 작은 박스 (프리셋 표현)
+            // 5개 작은 박스 (프리셋 표현) — 클리어된 1개만 밝게
             const miniSize = 18;
             const miniGap = 4;
             const miniTotalW = 5 * miniSize + 4 * miniGap;
@@ -201,9 +201,15 @@ class StageSelectScene extends Phaser.Scene {
 
             for (let j = 0; j < 5; j++) {
                 const mx = miniStartX + j * (miniSize + miniGap);
-                const miniColor = cleared ? (redColors[stageId] || 0x5C2A2A) : 0x1a1010;
-                this.add.rectangle(mx, centerY - 20, miniSize, miniSize, miniColor)
-                    .setStrokeStyle(1, cleared ? 0xff4444 : 0x332222);
+                if (cleared && j === 0) {
+                    // 클리어된 프리셋 (첫 번째로 표시)
+                    this.add.rectangle(mx, centerY - 20, miniSize, miniSize, redColors[stageId] || 0x5C2A2A)
+                        .setStrokeStyle(2, 0xff4444);
+                    this.add.text(mx, centerY - 20, '✓', { fontSize: '10px', color: '#ff4444' }).setOrigin(0.5);
+                } else {
+                    this.add.rectangle(mx, centerY - 20, miniSize, miniSize, 0x1a1010)
+                        .setStrokeStyle(1, 0x332222);
+                }
             }
 
             // 메인 박스
@@ -212,11 +218,11 @@ class StageSelectScene extends Phaser.Scene {
                 .setStrokeStyle(2, cleared ? 0xff4444 : (unlocked ? 0x664444 : 0x332222));
 
             if (cleared) {
-                this.add.text(x, centerY + 30, `${sd.stageNumber}`, {
+                this.add.text(x, centerY + 22, `${sd.stageNumber}`, {
                     fontSize: '20px', fontFamily: 'monospace', color: '#ff6666'
                 }).setOrigin(0.5);
-                this.add.text(x + 22, centerY + 8, '✓', {
-                    fontSize: '14px', color: '#ff4444'
+                this.add.text(x, centerY + 40, '✓', {
+                    fontSize: '16px', color: '#00ff88'
                 }).setOrigin(0.5);
             } else if (unlocked) {
                 const q = this.add.text(x, centerY + 30, '?', {
