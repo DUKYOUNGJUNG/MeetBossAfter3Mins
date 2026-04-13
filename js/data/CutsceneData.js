@@ -189,7 +189,7 @@ const CUTSCENE_DATA = {
         bgColor: '#000000',
         typewriter: true,
         sequence: [
-            { text: '1번째 도전', duration: 2000, color: '#666666', size: '36px', y: 250 },
+            { text: '1번째', duration: 2000, color: '#666666', size: '36px', y: 250 },
             { text: '"지워야 했다.\n나의 첫 번째 죽음을..."', duration: 3000, color: '#ff4444', size: '22px', y: 320 },
         ],
     },
@@ -197,7 +197,7 @@ const CUTSCENE_DATA = {
         bgColor: '#000000',
         typewriter: true,
         sequence: [
-            { text: '2,314번째 도전', duration: 2000, color: '#666666', size: '36px', y: 250 },
+            { text: '2,314번째', duration: 2000, color: '#666666', size: '36px', y: 250 },
             { text: '"없애야 했다.\n그 일족을..."', duration: 3000, color: '#ff4444', size: '22px', y: 320 },
         ],
     },
@@ -205,7 +205,7 @@ const CUTSCENE_DATA = {
         bgColor: '#000000',
         typewriter: true,
         sequence: [
-            { text: '347,262,423번째 도전', duration: 2000, color: '#666666', size: '36px', y: 250 },
+            { text: '347,262,423번째', duration: 2000, color: '#666666', size: '36px', y: 250 },
             { text: '"구해야 했다.\n갇혀 있는 나 자신을..."', duration: 3000, color: '#ff4444', size: '22px', y: 320 },
         ],
     },
@@ -213,7 +213,7 @@ const CUTSCENE_DATA = {
         bgColor: '#000000',
         typewriter: false,
         sequence: [
-            { text: '9,283,742,618,394,726,153,847번째 도전', duration: 2500, color: '#666666', size: '20px', y: 250 },
+            { text: '9,283,742,618,394,726,153,847번째', duration: 2500, color: '#666666', size: '20px', y: 250 },
             { text: '"고쳐야 했다.\n시간 붕괴의 사건을..."', duration: 3000, color: '#ff4444', size: '22px', y: 320 },
         ],
     },
@@ -221,7 +221,7 @@ const CUTSCENE_DATA = {
         bgColor: '#000000',
         typewriter: true,
         sequence: [
-            { text: '마지막 도전', duration: 2500, color: '#ffffff', size: '36px', y: 250 },
+            { text: '마지막', duration: 2500, color: '#ffffff', size: '36px', y: 250 },
             { text: '"찾아야 했다.\n너를..."', duration: 3000, color: '#ff4444', size: '22px', y: 320 },
         ],
     },
