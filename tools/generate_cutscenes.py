@@ -32,8 +32,8 @@ CUTSCENES = {
 
     # 노멀 클리어
     "normal_1_ancient": STYLE_PREFIX + "ancient noble mansion on hill, peasants in chains walking below, sunset, oppression",
-    "normal_2_medieval": STYLE_PREFIX + "dark medieval alley, body on ground, cloaked figure walking away, blood drops",
-    "normal_3_modern_edu": STYLE_PREFIX + "bright room, child's drawing on table, adult hand placing small knife, child's hand hesitating",
+    "normal_2_medieval": STYLE_PREFIX + "dark medieval alley at night, lone cloaked figure walking away into fog, cobblestone street, ominous mood",
+    "normal_3_modern_edu": STYLE_PREFIX + "bright room, child's colorful drawing on table, adult hand reaching toward it, shadow falling over the drawing",
     "normal_4_experiment": STYLE_PREFIX + "white sterile room, person strapped to bed, doctors with clipboards watching, cold fluorescent light",
     "normal_5_facility": STYLE_PREFIX + "futuristic containment pod, person inside with eyes open, blue light, workers passing by ignoring",
 
@@ -43,16 +43,16 @@ CUTSCENES = {
 
     # 레드 클리어
     "red_1_birth": STYLE_PREFIX + "warm small room, newborn baby, mother looking down with tears of joy, gentle light",
-    "red_2_sacrifice": STYLE_PREFIX + "fire scene, silhouette carrying child out of flames, back burning, nobody coming to help",
-    "red_3_captive": STYLE_PREFIX + "dark room from floor perspective, faces looking down, expressionless, ropes tightening",
-    "red_4_execution": STYLE_PREFIX + "rapid flashing images of weapons, person curled up on floor, someone standing above saying casual words",
+    "red_2_sacrifice": STYLE_PREFIX + "silhouette of person emerging from bright flames carrying something precious, heroic but tragic, nobody waiting outside",
+    "red_3_captive": STYLE_PREFIX + "dark room seen from low angle, shadowy figures standing in circle looking down, cold expressions, oppressive atmosphere",
+    "red_4_execution": STYLE_PREFIX + "person sitting alone in dark room, single light from above, overwhelming loneliness, someone standing casually in doorway ignoring them",
     "red_5_escape": STYLE_PREFIX + "containment pod cracking from inside, red glowing eyes, alarms, people running",
 
     # 엔딩 B
     "ending_b_question": STYLE_PREFIX + "two silhouettes facing each other in void, one with ancient eyes in young face",
 
     # 진레드
-    "true_red_1_death": STYLE_PREFIX + "countless deaths montage, same person dying over and over, time distortion",
+    "true_red_1_death": STYLE_PREFIX + "same silhouette figure repeated infinitely in mirror-like reflections, each slightly different, time loop feeling, existential dread",
     "true_red_2_clan": STYLE_PREFIX + "different clan symbol, same persecution, different era same fate, hopelessness",
     "true_red_3_prison": STYLE_PREFIX + "figure searching through corridors, empty rooms, cannot find what looking for, despair",
     "true_red_4_collapse": STYLE_PREFIX + "time distortion event, reality cracking, figure reaching toward unreachable light",
