@@ -74,8 +74,13 @@ class GameScene extends Phaser.Scene {
         this.isJumping = false;
         this.jumpHeld = false;
 
+        // 이동 발판
+        this.movingPlatforms = this.physics.add.group();
+        this.createMovingPlatforms();
+
         // 충돌
         this.physics.add.collider(this.player, this.platforms);
+        this.physics.add.collider(this.player, this.movingPlatforms);
 
         // 아이템
         this.items = this.physics.add.staticGroup();
@@ -219,6 +224,66 @@ class GameScene extends Phaser.Scene {
         const platform = this.platforms.create(x + width / 2, y + height / 2, key);
         platform.setDisplaySize(width, height);
         platform.refreshBody();
+    }
+
+    createMovingPlatforms() {
+        const sd = this.stageData;
+        if (!sd.movingPlatforms || sd.movingPlatforms.length === 0) return;
+
+        sd.movingPlatforms.forEach(mp => {
+            const w = mp.w || 120;
+            const h = mp.h || 16;
+            const key = `mplat_${mp.x}_${mp.y}_${w}`;
+            if (!this.textures.exists(key)) {
+                const g = this.add.graphics();
+                g.fillStyle(mp.color || sd.map.platformColor);
+                g.fillRect(0, 0, w, h);
+                // 이동 발판 표시 (줄무늬)
+                g.fillStyle(0xffffff, 0.1);
+                for (let i = 0; i < w; i += 8) {
+                    g.fillRect(i, 0, 4, h);
+                }
+                g.generateTexture(key, w, h);
+                g.destroy();
+            }
+
+            const plat = this.movingPlatforms.create(mp.x + w / 2, mp.y + h / 2, key);
+            plat.setDisplaySize(w, h);
+            plat.setImmovable(true);
+            plat.body.allowGravity = false;
+
+            // 이동 데이터 저장
+            plat.setData('moveType', mp.moveType); // 'horizontal' or 'vertical'
+            plat.setData('startX', mp.x + w / 2);
+            plat.setData('startY', mp.y + h / 2);
+            plat.setData('distance', mp.distance || 200);
+            plat.setData('speed', mp.speed || 50);
+            plat.setData('dir', 1);
+
+            if (this.uiCamera) this.uiCamera.ignore(plat);
+        });
+    }
+
+    updateMovingPlatforms(time) {
+        this.movingPlatforms.getChildren().forEach(plat => {
+            const moveType = plat.getData('moveType');
+            const startX = plat.getData('startX');
+            const startY = plat.getData('startY');
+            const dist = plat.getData('distance');
+            const speed = plat.getData('speed');
+
+            if (moveType === 'horizontal') {
+                const t = Math.sin(time * speed / 10000 * Math.PI) * dist;
+                plat.x = startX + t;
+                plat.body.velocity.x = Math.cos(time * speed / 10000 * Math.PI) * dist * speed / 10000 * Math.PI;
+            } else if (moveType === 'vertical') {
+                const t = Math.sin(time * speed / 10000 * Math.PI) * dist;
+                plat.y = startY + t;
+                plat.body.velocity.y = Math.cos(time * speed / 10000 * Math.PI) * dist * speed / 10000 * Math.PI;
+            }
+
+            plat.body.updateFromGameObject();
+        });
     }
 
     createItems() {
@@ -691,6 +756,7 @@ class GameScene extends Phaser.Scene {
     update(time, delta) {
         this.checkTouchInput();
         this.updateEnemies(time);
+        this.updateMovingPlatforms(time);
         const dt = delta / 1000;
         const onGround = this.player.body.touching.down || this.player.body.blocked.down;
 

@@ -3,112 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>적 배치 에디터</title>
+    <title>맵 에디터</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #1a1a2e; color: #fff; font-family: monospace; display: flex; height: 100vh; }
-
-        #sidebar {
-            width: 240px; background: #16213e; padding: 12px; overflow-y: auto;
-            border-right: 2px solid #333;
+        body { background: #1a1a2e; color: #fff; font-family: monospace; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 260px; background: #16213e; padding: 10px; overflow-y: auto; border-right: 2px solid #333; font-size: 12px; }
+        #sidebar h2 { font-size: 15px; margin-bottom: 6px; color: #ffd700; }
+        #sidebar h3 { font-size: 13px; margin: 8px 0 4px; color: #4fc3f7; border-bottom: 1px solid #333; padding-bottom: 2px; }
+        #sidebar select, #sidebar input, #sidebar button {
+            width: 100%; padding: 5px; margin: 2px 0; background: #0f3460;
+            color: #fff; border: 1px solid #444; font-family: monospace; font-size: 11px;
         }
-        #sidebar h2 { font-size: 16px; margin-bottom: 8px; color: #ffd700; }
-        #sidebar select, #sidebar button {
-            width: 100%; padding: 8px; margin: 4px 0; background: #0f3460;
-            color: #fff; border: 1px solid #444; font-family: monospace; cursor: pointer;
-        }
+        #sidebar button { cursor: pointer; }
         #sidebar button:hover { background: #1a4a8a; }
-        .enemy-btn {
-            display: block; width: 100%; padding: 10px; margin: 4px 0;
-            text-align: left; font-size: 13px; border-radius: 4px;
-        }
-        .enemy-btn.selected { border: 2px solid #ffd700; background: #2a3a5e; }
-        .enemy-btn .preview {
-            display: inline-block; width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;
-        }
-
-        #canvas-wrap {
-            flex: 1; overflow: auto; position: relative; background: #0a0a1a;
-        }
-        canvas { display: block; cursor: crosshair; }
-
-        #info {
-            position: fixed; bottom: 0; left: 240px; right: 0; height: 40px;
-            background: #111; display: flex; align-items: center; padding: 0 12px;
-            font-size: 13px; color: #888; border-top: 1px solid #333;
-        }
-        #info span { margin-right: 20px; }
-
-        #output-panel {
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-            width: 600px; max-height: 80vh; background: #16213e; border: 2px solid #ffd700;
-            border-radius: 8px; padding: 16px; z-index: 100;
-        }
-        #output-panel textarea {
-            width: 100%; height: 300px; background: #0a0a1a; color: #4fc3f7;
-            border: 1px solid #333; font-family: monospace; font-size: 12px; padding: 8px;
-        }
-        #overlay {
-            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.6); z-index: 99;
-        }
-
-        .prop-row { display: flex; align-items: center; margin: 4px 0; font-size: 12px; }
-        .prop-row label { width: 70px; color: #aaa; }
-        .prop-row input {
-            flex: 1; background: #0a0a1a; color: #fff; border: 1px solid #444;
-            padding: 4px; font-family: monospace;
-        }
-
-        #placed-list { margin-top: 8px; max-height: 200px; overflow-y: auto; }
-        .placed-item {
-            font-size: 11px; padding: 4px 6px; margin: 2px 0; background: #0f1a2e;
-            border-radius: 3px; cursor: pointer; display: flex; justify-content: space-between;
-        }
+        .row { display: flex; gap: 4px; align-items: center; margin: 2px 0; }
+        .row label { width: 50px; color: #aaa; font-size: 11px; flex-shrink: 0; }
+        .row input { flex: 1; }
+        .tool-btn { display: inline-block; width: 48%; padding: 8px 4px; margin: 1px; text-align: center; border-radius: 3px; font-size: 11px; }
+        .tool-btn.selected { border: 2px solid #ffd700 !important; background: #2a3a5e !important; }
+        .preview { display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: middle; }
+        #canvas-wrap { flex: 1; overflow: hidden; position: relative; }
+        canvas { display: block; }
+        #info { position: fixed; bottom: 0; left: 260px; right: 0; height: 32px; background: #111; display: flex; align-items: center; padding: 0 10px; font-size: 11px; color: #888; border-top: 1px solid #333; gap: 15px; }
+        .placed-item { font-size: 10px; padding: 3px 5px; margin: 1px 0; background: #0f1a2e; border-radius: 2px; cursor: pointer; display: flex; justify-content: space-between; }
         .placed-item:hover { background: #1a2a4e; }
-        .placed-item .del { color: #ff4444; cursor: pointer; }
+        .placed-item .del { color: #ff4444; cursor: pointer; padding: 0 4px; }
+        #placed-list { max-height: 150px; overflow-y: auto; }
+        .big-btn { background: #ffd700 !important; color: #000 !important; font-weight: bold; font-size: 13px !important; padding: 10px !important; }
+        .danger-btn { background: #ff4444 !important; color: #fff !important; }
+        .play-btn { background: #00cc66 !important; color: #000 !important; font-weight: bold; font-size: 13px !important; padding: 10px !important; }
+        #game-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: #000; }
+        #game-overlay .close-btn { position: fixed; top: 10px; right: 10px; z-index: 101; background: #ff4444; color: #fff; border: none; padding: 8px 16px; cursor: pointer; font-family: monospace; font-size: 14px; }
+        #game-container-test { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
     <div id="sidebar">
-        <h2>적 배치 에디터</h2>
+        <h2>🗺 맵 에디터</h2>
 
-        <label style="font-size:12px; color:#aaa;">스테이지:</label>
+        <h3>스테이지</h3>
         <select id="stage-select"></select>
 
-        <hr style="border-color:#333; margin:8px 0;">
-        <label style="font-size:12px; color:#aaa;">배치할 적 선택:</label>
+        <h3>맵 크기</h3>
+        <div class="row"><label>너비:</label><input type="number" id="map-width" value="4000" step="100"></div>
+        <div class="row"><label>높이:</label><input type="number" id="map-height" value="1200" step="100"></div>
+        <button onclick="applyMapSize()">맵 크기 적용</button>
 
-        <button class="enemy-btn" data-type="walker" onclick="selectEnemy('walker')">
-            <span class="preview" style="background:#ff4444;"></span> 전진형
-        </button>
-        <button class="enemy-btn" data-type="patrol" onclick="selectEnemy('patrol')">
-            <span class="preview" style="background:#ff4444;"></span> 왕복형
-        </button>
-        <button class="enemy-btn" data-type="jumper" onclick="selectEnemy('jumper')">
-            <span class="preview" style="background:#ff8800;"></span> 점프 방해
-        </button>
-        <button class="enemy-btn" data-type="shooter" onclick="selectEnemy('shooter')">
-            <span class="preview" style="background:#8844ff;"></span> 원거리 사격
-        </button>
-        <button class="enemy-btn" data-type="falling" onclick="selectEnemy('falling')">
-            <span class="preview" style="background:#888;"></span> 낙석
-        </button>
-        <button class="enemy-btn" data-type="spike" onclick="selectEnemy('spike')">
-            <span class="preview" style="background:#aa4444;"></span> 솟아나는 가시
-        </button>
+        <h3>스폰</h3>
+        <div class="row"><label>X:</label><input type="number" id="spawn-x" value="100"></div>
+        <div class="row"><label>Y:</label><input type="number" id="spawn-y" value="1120"></div>
 
-        <hr style="border-color:#333; margin:8px 0;">
-        <label style="font-size:12px; color:#aaa;">선택된 적 속성:</label>
-        <div id="props"></div>
+        <h3>도구 선택</h3>
+        <button class="tool-btn" data-tool="platform" onclick="selectTool('platform')"><span class="preview" style="background:#3a506b"></span>발판</button>
+        <button class="tool-btn" data-tool="moving_h" onclick="selectTool('moving_h')"><span class="preview" style="background:#00aaff"></span>수평이동</button>
+        <button class="tool-btn" data-tool="moving_v" onclick="selectTool('moving_v')"><span class="preview" style="background:#00ffaa"></span>수직이동</button>
+        <button class="tool-btn" data-tool="wall" onclick="selectTool('wall')"><span class="preview" style="background:#2d4059"></span>벽</button>
+        <button class="tool-btn" data-tool="item" onclick="selectTool('item')"><span class="preview" style="background:#ffd700"></span>아이템</button>
+        <button class="tool-btn" data-tool="walker" onclick="selectTool('walker')"><span class="preview" style="background:#ff4444"></span>전진적</button>
+        <button class="tool-btn" data-tool="patrol" onclick="selectTool('patrol')"><span class="preview" style="background:#ff6644"></span>왕복적</button>
+        <button class="tool-btn" data-tool="jumper" onclick="selectTool('jumper')"><span class="preview" style="background:#ff8800"></span>점프적</button>
+        <button class="tool-btn" data-tool="shooter" onclick="selectTool('shooter')"><span class="preview" style="background:#8844ff"></span>사격적</button>
+        <button class="tool-btn" data-tool="falling" onclick="selectTool('falling')"><span class="preview" style="background:#888"></span>낙석</button>
+        <button class="tool-btn" data-tool="spike" onclick="selectTool('spike')"><span class="preview" style="background:#aa4444"></span>가시</button>
+        <button class="tool-btn" data-tool="select" onclick="selectTool('select')">🔍 선택</button>
 
-        <hr style="border-color:#333; margin:8px 0;">
-        <label style="font-size:12px; color:#aaa;">배치된 적 목록:</label>
+        <h3>선택된 속성</h3>
+        <div id="props"><span style="color:#555">객체를 클릭하세요</span></div>
+
+        <h3>배치 목록</h3>
         <div id="placed-list"></div>
 
-        <hr style="border-color:#333; margin:8px 0;">
-        <button onclick="exportData()" style="background:#ffd700; color:#000; font-weight:bold;">📋 데이터 내보내기</button>
-        <button onclick="clearAll()" style="background:#ff4444; color:#fff; margin-top:4px;">🗑 전체 삭제</button>
+        <h3 style="margin-top: 10px;">액션</h3>
+        <button class="play-btn" onclick="testPlay()">▶ 테스트 플레이</button>
+        <button class="big-btn" onclick="exportData()" style="margin-top:4px">📋 데이터 내보내기</button>
+        <button onclick="importData()" style="margin-top:4px">📥 데이터 불러오기</button>
+        <button class="danger-btn" onclick="clearAll()" style="margin-top:4px">🗑 전체 삭제</button>
     </div>
 
     <div id="canvas-wrap">
@@ -117,434 +86,559 @@
 
     <div id="info">
         <span id="mouse-pos">X: 0, Y: 0</span>
-        <span id="cur-enemy">선택: 없음</span>
-        <span>클릭: 배치 | 우클릭: 삭제 | 스크롤: 좌우이동</span>
+        <span id="cur-tool">도구: 없음</span>
+        <span>클릭: 배치 | 우클릭: 삭제 | 스크롤: 이동 | Shift+스크롤: 줌</span>
     </div>
 
-    <div id="overlay" onclick="closeOutput()"></div>
-    <div id="output-panel">
-        <h3 style="color:#ffd700; margin-bottom:8px;">enemies 배열 데이터</h3>
-        <p style="font-size:12px; color:#aaa; margin-bottom:8px;">아래 데이터를 복사해서 전달해주세요:</p>
-        <textarea id="output-text" readonly></textarea>
-        <button onclick="copyOutput()" style="margin-top:8px; background:#4fc3f7; color:#000; padding:8px 16px; border:none; cursor:pointer; font-family:monospace;">📋 복사</button>
-        <button onclick="closeOutput()" style="margin-top:8px; margin-left:8px; background:#666; color:#fff; padding:8px 16px; border:none; cursor:pointer;">닫기</button>
+    <!-- 테스트 플레이 오버레이 -->
+    <div id="game-overlay">
+        <button class="close-btn" onclick="stopTestPlay()">✕ 에디터로</button>
+        <div id="game-container-test"></div>
     </div>
 
+    <!-- Phaser (테스트용) -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <script src="js/data/StageData.js"></script>
+    <script src="js/data/StageProgress.js"></script>
+    <script src="js/data/CutsceneData.js"></script>
+    <script src="js/scenes/GameScene.js"></script>
+
     <script>
-        const canvas = document.getElementById('editor-canvas');
-        const ctx = canvas.getContext('2d');
-        const stageSelect = document.getElementById('stage-select');
+    // ==========================================
+    // 에디터 상태
+    // ==========================================
+    let mapW = 4000, mapH = 1200;
+    let spawnX = 100, spawnY = 1120;
+    let objects = []; // { type, x, y, w, h, ... }
+    let selectedIdx = -1;
+    let currentTool = 'select';
+    let scrollX = 0, scrollY = 0;
+    let scale = 0.5;
+    let isDragging = false;
+    let dragStart = null;
+    let dragObj = null;
 
-        let currentStageId = 'normal_1';
-        let currentEnemyType = null;
-        let placedEnemies = [];
-        let selectedPlacedIdx = -1;
-        let scrollX = 0;
-        let scale = 0.5; // 맵이 크니까 축소
+    const canvas = document.getElementById('editor-canvas');
+    const ctx = canvas.getContext('2d');
 
-        // 적 기본값
-        const ENEMY_DEFAULTS = {
-            walker: { speed: 60, dir: 1 },
-            patrol: { speed: 80, minX: 0, maxX: 200 },
-            jumper: { range: 200 },
-            shooter: { interval: 2000 },
-            falling: { triggerX: 0 },
-            spike: { interval: 3000 },
-        };
+    // 색상
+    const COLORS = {
+        platform: '#3a506b', wall: '#2d4059', item: '#ffd700',
+        moving_h: '#00aaff', moving_v: '#00ffaa',
+        walker: '#ff4444', patrol: '#ff6644', jumper: '#ff8800',
+        shooter: '#8844ff', falling: '#888888', spike: '#aa4444',
+        spawn: '#4fc3f7',
+    };
 
-        // 적 색상
-        const ENEMY_COLORS = {
-            walker: '#ff4444',
-            patrol: '#ff6644',
-            jumper: '#ff8800',
-            shooter: '#8844ff',
-            falling: '#888888',
-            spike: '#aa4444',
-        };
+    const LABELS = {
+        platform: '발판', wall: '벽', item: '아이템',
+        moving_h: '수평', moving_v: '수직',
+        walker: '전진', patrol: '왕복', jumper: '점프',
+        shooter: '사격', falling: '낙석', spike: '가시',
+    };
 
-        const ENEMY_LABELS = {
-            walker: '전진', patrol: '왕복', jumper: '점프', shooter: '사격', falling: '낙석', spike: '가시',
-        };
+    // 기본값
+    const DEFAULTS = {
+        platform: { w: 150, h: 20 },
+        wall: { w: 30, h: 270 },
+        moving_h: { w: 120, h: 16, distance: 200, speed: 50 },
+        moving_v: { w: 120, h: 16, distance: 150, speed: 50 },
+        item: { name: '???' },
+        walker: { speed: 60, dir: 1 },
+        patrol: { speed: 80, minX: 0, maxX: 200 },
+        jumper: { range: 200 },
+        shooter: { interval: 2000 },
+        falling: { triggerX: 0 },
+        spike: { interval: 3000 },
+    };
 
-        // 스테이지 목록 채우기
-        Object.keys(STAGE_DATA).forEach(id => {
-            const sd = STAGE_DATA[id];
-            const opt = document.createElement('option');
-            opt.value = id;
-            opt.textContent = `${sd.era} - ${sd.name} (${id})`;
-            stageSelect.appendChild(opt);
+    // ==========================================
+    // 스테이지 로드
+    // ==========================================
+    const stageSelect = document.getElementById('stage-select');
+    Object.keys(STAGE_DATA).forEach(id => {
+        const sd = STAGE_DATA[id];
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = `${sd.era} - ${sd.name} (${id})`;
+        stageSelect.appendChild(opt);
+    });
+
+    stageSelect.addEventListener('change', () => loadStage(stageSelect.value));
+
+    function loadStage(stageId) {
+        const sd = STAGE_DATA[stageId];
+        if (!sd) return;
+
+        mapW = sd.map.width;
+        mapH = sd.map.height;
+        spawnX = sd.spawn.x;
+        spawnY = sd.spawn.y;
+        objects = [];
+        selectedIdx = -1;
+
+        document.getElementById('map-width').value = mapW;
+        document.getElementById('map-height').value = mapH;
+        document.getElementById('spawn-x').value = spawnX;
+        document.getElementById('spawn-y').value = spawnY;
+
+        // 플랫폼
+        sd.platforms.forEach(p => objects.push({ type: 'platform', x: p.x, y: p.y, w: p.w, h: p.h }));
+        // 벽
+        if (sd.walls) sd.walls.forEach(w => objects.push({ type: 'wall', x: w.x, y: w.y, w: w.w, h: w.h }));
+        // 이동발판
+        if (sd.movingPlatforms) sd.movingPlatforms.forEach(mp => objects.push({
+            type: mp.moveType === 'vertical' ? 'moving_v' : 'moving_h',
+            x: mp.x, y: mp.y, w: mp.w || 120, h: mp.h || 16,
+            distance: mp.distance || 200, speed: mp.speed || 50
+        }));
+        // 아이템
+        const items = sd.items || (sd.itemPresets ? sd.itemPresets[0] : []);
+        if (items) items.forEach(it => objects.push({ type: 'item', x: it.x, y: it.y, name: it.name || '???' }));
+        // 적
+        if (sd.enemies) sd.enemies.forEach(e => {
+            const obj = { type: e.type, x: e.x, y: e.y };
+            Object.keys(e).forEach(k => { if (k !== 'type' && k !== 'x' && k !== 'y') obj[k] = e[k]; });
+            objects.push(obj);
         });
 
-        stageSelect.addEventListener('change', () => {
-            currentStageId = stageSelect.value;
-            // 기존 적 데이터 로드
-            const sd = STAGE_DATA[currentStageId];
-            placedEnemies = sd.enemies ? JSON.parse(JSON.stringify(sd.enemies)) : [];
-            scrollX = 0;
-            selectedPlacedIdx = -1;
-            updatePlacedList();
-            draw();
-        });
-
-        // 초기 로드
-        const initSd = STAGE_DATA[currentStageId];
-        placedEnemies = initSd.enemies ? JSON.parse(JSON.stringify(initSd.enemies)) : [];
-
-        function selectEnemy(type) {
-            currentEnemyType = type;
-            document.querySelectorAll('.enemy-btn').forEach(b => b.classList.remove('selected'));
-            document.querySelector(`[data-type="${type}"]`).classList.add('selected');
-            document.getElementById('cur-enemy').textContent = `선택: ${ENEMY_LABELS[type]}`;
-            selectedPlacedIdx = -1;
-            updateProps();
-        }
-
-        function resizeCanvas() {
-            const wrap = document.getElementById('canvas-wrap');
-            canvas.width = wrap.clientWidth;
-            canvas.height = wrap.clientHeight - 40;
-            draw();
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        function draw() {
-            const sd = STAGE_DATA[currentStageId];
-            const mapW = sd.map.width;
-            const mapH = sd.map.height;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            ctx.save();
-            ctx.scale(scale, scale);
-            ctx.translate(-scrollX, 0);
-
-            // 배경
-            ctx.fillStyle = sd.map.backgroundColor;
-            ctx.fillRect(0, 0, mapW, mapH);
-
-            // 그리드 (100px 간격)
-            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-            ctx.lineWidth = 1;
-            for (let x = 0; x < mapW; x += 100) {
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, mapH); ctx.stroke();
-            }
-            for (let y = 0; y < mapH; y += 100) {
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(mapW, y); ctx.stroke();
-            }
-
-            // 플랫폼
-            sd.platforms.forEach(p => {
-                ctx.fillStyle = '#' + (p.color || sd.map.platformColor).toString(16).padStart(6, '0');
-                ctx.fillRect(p.x, p.y, p.w, p.h);
-                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-                ctx.strokeRect(p.x, p.y, p.w, p.h);
-            });
-
-            // 벽
-            if (sd.walls) {
-                sd.walls.forEach(w => {
-                    ctx.fillStyle = '#' + (sd.map.accentColor).toString(16).padStart(6, '0');
-                    ctx.fillRect(w.x, w.y, w.w, w.h);
-                });
-            }
-
-            // 아이템
-            const items = sd.items || (sd.itemPresets ? sd.itemPresets[0] : []);
-            if (items) {
-                items.forEach(item => {
-                    ctx.fillStyle = '#ffd700';
-                    ctx.beginPath();
-                    ctx.arc(item.x, item.y, 10, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#ffea00';
-                    ctx.beginPath();
-                    ctx.arc(item.x, item.y, 6, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-            }
-
-            // 스폰
-            ctx.fillStyle = '#4fc3f7';
-            ctx.fillRect(sd.spawn.x - 16, sd.spawn.y - 24, 32, 48);
-            ctx.fillStyle = '#fff';
-            ctx.font = '10px monospace';
-            ctx.fillText('SPAWN', sd.spawn.x - 18, sd.spawn.y - 28);
-
-            // 배치된 적
-            placedEnemies.forEach((e, idx) => {
-                const color = ENEMY_COLORS[e.type] || '#fff';
-                const isSelected = idx === selectedPlacedIdx;
-
-                ctx.fillStyle = color;
-                ctx.globalAlpha = isSelected ? 1 : 0.8;
-
-                if (e.type === 'spike' || e.type === 'falling') {
-                    // 삼각형
-                    ctx.beginPath();
-                    ctx.moveTo(e.x, e.y - 12);
-                    ctx.lineTo(e.x - 12, e.y + 12);
-                    ctx.lineTo(e.x + 12, e.y + 12);
-                    ctx.closePath();
-                    ctx.fill();
-                } else {
-                    // 사각형
-                    const s = e.type === 'shooter' ? 15 : 14;
-                    ctx.fillRect(e.x - s, e.y - s, s * 2, s * 2);
-                }
-
-                // 라벨
-                ctx.fillStyle = '#fff';
-                ctx.font = '10px monospace';
-                ctx.fillText(ENEMY_LABELS[e.type], e.x - 10, e.y - 16);
-
-                // 왕복 범위 표시
-                if (e.type === 'patrol' && e.minX !== undefined) {
-                    ctx.strokeStyle = color;
-                    ctx.globalAlpha = 0.4;
-                    ctx.setLineDash([4, 4]);
-                    ctx.beginPath();
-                    ctx.moveTo(e.minX, e.y);
-                    ctx.lineTo(e.maxX, e.y);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-
-                // 낙석 트리거 표시
-                if (e.type === 'falling' && e.triggerX !== undefined) {
-                    ctx.strokeStyle = '#ffff00';
-                    ctx.globalAlpha = 0.3;
-                    ctx.setLineDash([2, 4]);
-                    ctx.beginPath();
-                    ctx.moveTo(e.triggerX, 0);
-                    ctx.lineTo(e.triggerX, mapH);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-
-                // 선택 테두리
-                if (isSelected) {
-                    ctx.strokeStyle = '#ffd700';
-                    ctx.lineWidth = 2;
-                    ctx.globalAlpha = 1;
-                    ctx.strokeRect(e.x - 18, e.y - 18, 36, 36);
-                }
-
-                ctx.globalAlpha = 1;
-            });
-
-            ctx.restore();
-        }
-
-        // 마우스 → 맵 좌표 변환
-        function screenToMap(sx, sy) {
-            return {
-                x: Math.round((sx / scale) + scrollX),
-                y: Math.round(sy / scale)
-            };
-        }
-
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const pos = screenToMap(e.clientX - rect.left, e.clientY - rect.top);
-            document.getElementById('mouse-pos').textContent = `X: ${pos.x}, Y: ${pos.y}`;
-        });
-
-        // 클릭: 배치
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const pos = screenToMap(e.clientX - rect.left, e.clientY - rect.top);
-
-            // 기존 적 클릭 체크
-            const clickedIdx = findEnemyAt(pos.x, pos.y);
-            if (clickedIdx >= 0) {
-                selectedPlacedIdx = clickedIdx;
-                currentEnemyType = null;
-                document.querySelectorAll('.enemy-btn').forEach(b => b.classList.remove('selected'));
-                updateProps();
-                updatePlacedList();
-                draw();
-                return;
-            }
-
-            if (!currentEnemyType) return;
-
-            const defaults = { ...ENEMY_DEFAULTS[currentEnemyType] };
-            const enemy = { type: currentEnemyType, x: pos.x, y: pos.y, ...defaults };
-
-            // 왕복형 기본 범위
-            if (enemy.type === 'patrol') {
-                enemy.minX = pos.x - 100;
-                enemy.maxX = pos.x + 100;
-            }
-            // 낙석 기본 트리거
-            if (enemy.type === 'falling') {
-                enemy.triggerX = pos.x;
-            }
-
-            placedEnemies.push(enemy);
-            selectedPlacedIdx = placedEnemies.length - 1;
-            updateProps();
-            updatePlacedList();
-            draw();
-        });
-
-        // 우클릭: 삭제
-        canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const pos = screenToMap(e.clientX - rect.left, e.clientY - rect.top);
-            const idx = findEnemyAt(pos.x, pos.y);
-            if (idx >= 0) {
-                placedEnemies.splice(idx, 1);
-                selectedPlacedIdx = -1;
-                updateProps();
-                updatePlacedList();
-                draw();
-            }
-        });
-
-        // 스크롤: 좌우 이동
-        canvas.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            scrollX += e.deltaY * 2;
-            const sd = STAGE_DATA[currentStageId];
-            scrollX = Math.max(0, Math.min(scrollX, sd.map.width - canvas.width / scale));
-            draw();
-        });
-
-        function findEnemyAt(mx, my) {
-            for (let i = placedEnemies.length - 1; i >= 0; i--) {
-                const e = placedEnemies[i];
-                if (Math.abs(e.x - mx) < 20 && Math.abs(e.y - my) < 20) return i;
-            }
-            return -1;
-        }
-
-        // 속성 패널
-        function updateProps() {
-            const container = document.getElementById('props');
-            container.innerHTML = '';
-
-            if (selectedPlacedIdx < 0) {
-                container.innerHTML = '<p style="font-size:11px; color:#555;">적을 선택하거나 배치하세요</p>';
-                return;
-            }
-
-            const e = placedEnemies[selectedPlacedIdx];
-            const fields = [
-                { key: 'x', label: 'X' },
-                { key: 'y', label: 'Y' },
-            ];
-
-            if (e.type === 'walker') {
-                fields.push({ key: 'speed', label: '속도' }, { key: 'dir', label: '방향(±1)' });
-            } else if (e.type === 'patrol') {
-                fields.push({ key: 'speed', label: '속도' }, { key: 'minX', label: '최소X' }, { key: 'maxX', label: '최대X' });
-            } else if (e.type === 'jumper') {
-                fields.push({ key: 'range', label: '감지거리' });
-            } else if (e.type === 'shooter') {
-                fields.push({ key: 'interval', label: '발사간격(ms)' });
-            } else if (e.type === 'falling') {
-                fields.push({ key: 'triggerX', label: '트리거X' });
-            } else if (e.type === 'spike') {
-                fields.push({ key: 'interval', label: '주기(ms)' });
-            }
-
-            fields.forEach(f => {
-                const row = document.createElement('div');
-                row.className = 'prop-row';
-                row.innerHTML = `<label>${f.label}:</label><input type="number" value="${e[f.key] || 0}" data-key="${f.key}">`;
-                row.querySelector('input').addEventListener('change', (ev) => {
-                    e[f.key] = parseFloat(ev.target.value);
-                    draw();
-                    updatePlacedList();
-                });
-                container.appendChild(row);
-            });
-        }
-
-        // 배치 목록
-        function updatePlacedList() {
-            const list = document.getElementById('placed-list');
-            list.innerHTML = '';
-            placedEnemies.forEach((e, i) => {
-                const div = document.createElement('div');
-                div.className = 'placed-item';
-                div.innerHTML = `<span>${ENEMY_LABELS[e.type]} (${e.x}, ${e.y})</span><span class="del" onclick="removeEnemy(${i})">✕</span>`;
-                div.addEventListener('click', (ev) => {
-                    if (ev.target.classList.contains('del')) return;
-                    selectedPlacedIdx = i;
-                    // 스크롤 이동
-                    scrollX = Math.max(0, e.x * scale - canvas.width / 2);
-                    updateProps();
-                    draw();
-                });
-                if (i === selectedPlacedIdx) div.style.background = '#2a3a5e';
-                list.appendChild(div);
-            });
-        }
-
-        function removeEnemy(idx) {
-            placedEnemies.splice(idx, 1);
-            selectedPlacedIdx = -1;
-            updateProps();
-            updatePlacedList();
-            draw();
-        }
-
-        function clearAll() {
-            if (confirm('배치된 적을 모두 삭제하시겠습니까?')) {
-                placedEnemies = [];
-                selectedPlacedIdx = -1;
-                updateProps();
-                updatePlacedList();
-                draw();
-            }
-        }
-
-        // 내보내기
-        function exportData() {
-            const lines = placedEnemies.map(e => {
-                const parts = [`type: '${e.type}'`, `x: ${e.x}`, `y: ${e.y}`];
-                if (e.type === 'walker') {
-                    parts.push(`speed: ${e.speed}`, `dir: ${e.dir}`);
-                } else if (e.type === 'patrol') {
-                    parts.push(`speed: ${e.speed}`, `minX: ${e.minX}`, `maxX: ${e.maxX}`);
-                } else if (e.type === 'jumper') {
-                    parts.push(`range: ${e.range}`);
-                } else if (e.type === 'shooter') {
-                    parts.push(`interval: ${e.interval}`);
-                } else if (e.type === 'falling') {
-                    parts.push(`triggerX: ${e.triggerX}`);
-                } else if (e.type === 'spike') {
-                    parts.push(`interval: ${e.interval}`);
-                }
-                return `            { ${parts.join(', ')} },`;
-            });
-
-            const output = `        enemies: [\n${lines.join('\n')}\n        ],`;
-            document.getElementById('output-text').value = output;
-            document.getElementById('output-panel').style.display = 'block';
-            document.getElementById('overlay').style.display = 'block';
-        }
-
-        function copyOutput() {
-            const textarea = document.getElementById('output-text');
-            textarea.select();
-            document.execCommand('copy');
-            alert('복사되었습니다!');
-        }
-
-        function closeOutput() {
-            document.getElementById('output-panel').style.display = 'none';
-            document.getElementById('overlay').style.display = 'none';
-        }
-
-        // 초기 그리기
-        updatePlacedList();
+        scrollX = 0; scrollY = 0;
+        updateList();
         draw();
+    }
+
+    // 초기 로드
+    loadStage('normal_1');
+
+    // ==========================================
+    // 캔버스
+    // ==========================================
+    function resizeCanvas() {
+        const wrap = document.getElementById('canvas-wrap');
+        canvas.width = wrap.clientWidth;
+        canvas.height = wrap.clientHeight - 32;
+        draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function screenToMap(sx, sy) {
+        return { x: Math.round(sx / scale + scrollX), y: Math.round(sy / scale + scrollY) };
+    }
+
+    function mapToScreen(mx, my) {
+        return { x: (mx - scrollX) * scale, y: (my - scrollY) * scale };
+    }
+
+    // ==========================================
+    // 그리기
+    // ==========================================
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.scale(scale, scale);
+        ctx.translate(-scrollX, -scrollY);
+
+        // 배경
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(0, 0, mapW, mapH);
+
+        // 그리드
+        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < mapW; x += 100) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, mapH); ctx.stroke(); }
+        for (let y = 0; y < mapH; y += 100) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(mapW, y); ctx.stroke(); }
+
+        // 맵 경계
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, mapW, mapH);
+
+        // 스폰
+        ctx.fillStyle = COLORS.spawn;
+        ctx.fillRect(spawnX - 16, spawnY - 24, 32, 48);
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px monospace';
+        ctx.fillText('SPAWN', spawnX - 18, spawnY - 28);
+
+        // 오브젝트 그리기
+        objects.forEach((obj, idx) => {
+            const isSelected = idx === selectedIdx;
+            ctx.globalAlpha = isSelected ? 1 : 0.8;
+
+            switch (obj.type) {
+                case 'platform':
+                case 'wall':
+                    ctx.fillStyle = COLORS[obj.type];
+                    ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+                    if (isSelected) { ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2; ctx.strokeRect(obj.x - 1, obj.y - 1, obj.w + 2, obj.h + 2); }
+                    break;
+
+                case 'moving_h':
+                case 'moving_v':
+                    ctx.fillStyle = COLORS[obj.type];
+                    ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+                    // 이동 경로 표시
+                    ctx.strokeStyle = COLORS[obj.type];
+                    ctx.globalAlpha = 0.3;
+                    ctx.setLineDash([4, 4]);
+                    if (obj.type === 'moving_h') {
+                        ctx.beginPath();
+                        ctx.moveTo(obj.x + obj.w / 2 - obj.distance, obj.y + obj.h / 2);
+                        ctx.lineTo(obj.x + obj.w / 2 + obj.distance, obj.y + obj.h / 2);
+                        ctx.stroke();
+                    } else {
+                        ctx.beginPath();
+                        ctx.moveTo(obj.x + obj.w / 2, obj.y + obj.h / 2 - obj.distance);
+                        ctx.lineTo(obj.x + obj.w / 2, obj.y + obj.h / 2 + obj.distance);
+                        ctx.stroke();
+                    }
+                    ctx.setLineDash([]);
+                    ctx.globalAlpha = isSelected ? 1 : 0.8;
+                    if (isSelected) { ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2; ctx.strokeRect(obj.x - 1, obj.y - 1, obj.w + 2, obj.h + 2); }
+                    break;
+
+                case 'item':
+                    ctx.fillStyle = '#ffd700';
+                    ctx.beginPath(); ctx.arc(obj.x, obj.y, 10, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#ffea00';
+                    ctx.beginPath(); ctx.arc(obj.x, obj.y, 6, 0, Math.PI * 2); ctx.fill();
+                    if (isSelected) { ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2; ctx.strokeRect(obj.x - 14, obj.y - 14, 28, 28); }
+                    break;
+
+                default: // 적
+                    ctx.fillStyle = COLORS[obj.type] || '#ff4444';
+                    if (obj.type === 'spike' || obj.type === 'falling') {
+                        ctx.beginPath(); ctx.moveTo(obj.x, obj.y - 12); ctx.lineTo(obj.x - 12, obj.y + 12); ctx.lineTo(obj.x + 12, obj.y + 12); ctx.closePath(); ctx.fill();
+                    } else {
+                        ctx.fillRect(obj.x - 14, obj.y - 14, 28, 28);
+                    }
+                    // 왕복 범위
+                    if (obj.type === 'patrol' && obj.minX != null) {
+                        ctx.strokeStyle = COLORS.patrol; ctx.globalAlpha = 0.3; ctx.setLineDash([4, 4]);
+                        ctx.beginPath(); ctx.moveTo(obj.minX, obj.y); ctx.lineTo(obj.maxX, obj.y); ctx.stroke();
+                        ctx.setLineDash([]); ctx.globalAlpha = isSelected ? 1 : 0.8;
+                    }
+                    if (isSelected) { ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2; ctx.strokeRect(obj.x - 18, obj.y - 18, 36, 36); }
+                    break;
+            }
+
+            // 라벨
+            ctx.fillStyle = '#fff';
+            ctx.font = '9px monospace';
+            ctx.globalAlpha = 0.6;
+            const lbl = LABELS[obj.type] || obj.type;
+            if (obj.type === 'platform' || obj.type === 'wall' || obj.type === 'moving_h' || obj.type === 'moving_v') {
+                ctx.fillText(lbl, obj.x + 2, obj.y - 3);
+            } else {
+                ctx.fillText(lbl, obj.x - 10, obj.y - 18);
+            }
+            ctx.globalAlpha = 1;
+        });
+
+        ctx.restore();
+    }
+
+    // ==========================================
+    // 입력
+    // ==========================================
+    function selectTool(tool) {
+        currentTool = tool;
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('selected'));
+        const btn = document.querySelector(`[data-tool="${tool}"]`);
+        if (btn) btn.classList.add('selected');
+        document.getElementById('cur-tool').textContent = `도구: ${LABELS[tool] || tool}`;
+        if (tool !== 'select') selectedIdx = -1;
+    }
+
+    canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const pos = screenToMap(e.clientX - rect.left, e.clientY - rect.top);
+        document.getElementById('mouse-pos').textContent = `X: ${pos.x}, Y: ${pos.y}`;
+
+        if (isDragging && dragObj != null) {
+            objects[dragObj].x = pos.x - (dragStart.ox || 0);
+            objects[dragObj].y = pos.y - (dragStart.oy || 0);
+            draw();
+        }
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.button === 2) return; // 우클릭은 contextmenu에서
+        const rect = canvas.getBoundingClientRect();
+        const pos = screenToMap(e.clientX - rect.left, e.clientY - rect.top);
+
+        if (currentTool === 'select') {
+            const idx = findObjectAt(pos.x, pos.y);
+            if (idx >= 0) {
+                selectedIdx = idx;
+                isDragging = true;
+                const obj = objects[idx];
+                dragObj = idx;
+                dragStart = { ox: pos.x - obj.x, oy: pos.y - obj.y };
+                updateProps();
+                updateList();
+                draw();
+            } else {
+                selectedIdx = -1;
+                updateProps();
+                draw();
+            }
+            return;
+        }
+
+        // 배치
+        const obj = { type: currentTool, x: pos.x, y: pos.y, ...DEFAULTS[currentTool] };
+        if (currentTool === 'patrol') { obj.minX = pos.x - 100; obj.maxX = pos.x + 100; }
+        if (currentTool === 'falling') { obj.triggerX = pos.x; }
+        objects.push(obj);
+        selectedIdx = objects.length - 1;
+        updateProps();
+        updateList();
+        draw();
+    });
+
+    canvas.addEventListener('mouseup', () => { isDragging = false; dragObj = null; });
+
+    canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const pos = screenToMap(e.clientX - rect.left, e.clientY - rect.top);
+        const idx = findObjectAt(pos.x, pos.y);
+        if (idx >= 0) {
+            objects.splice(idx, 1);
+            selectedIdx = -1;
+            updateProps();
+            updateList();
+            draw();
+        }
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (e.shiftKey) {
+            // 줌
+            scale = Math.max(0.2, Math.min(2, scale - e.deltaY * 0.001));
+        } else {
+            // 스크롤
+            scrollX += e.deltaX * 2 / scale;
+            scrollY += e.deltaY * 2 / scale;
+            scrollX = Math.max(0, Math.min(scrollX, mapW - canvas.width / scale));
+            scrollY = Math.max(0, Math.min(scrollY, mapH - canvas.height / scale));
+        }
+        draw();
+    });
+
+    function findObjectAt(mx, my) {
+        for (let i = objects.length - 1; i >= 0; i--) {
+            const obj = objects[i];
+            if (obj.w && obj.h) {
+                if (mx >= obj.x && mx <= obj.x + obj.w && my >= obj.y && my <= obj.y + obj.h) return i;
+            } else {
+                if (Math.abs(obj.x - mx) < 20 && Math.abs(obj.y - my) < 20) return i;
+            }
+        }
+        return -1;
+    }
+
+    // ==========================================
+    // 속성 패널
+    // ==========================================
+    function updateProps() {
+        const container = document.getElementById('props');
+        container.innerHTML = '';
+        if (selectedIdx < 0) { container.innerHTML = '<span style="color:#555">객체를 클릭하세요</span>'; return; }
+
+        const obj = objects[selectedIdx];
+        const fields = [{ key: 'x', label: 'X' }, { key: 'y', label: 'Y' }];
+
+        if (obj.w != null) fields.push({ key: 'w', label: 'W' }, { key: 'h', label: 'H' });
+        if (obj.type === 'moving_h' || obj.type === 'moving_v') fields.push({ key: 'distance', label: '거리' }, { key: 'speed', label: '속도' });
+        if (obj.type === 'item') fields.push({ key: 'name', label: '이름', isText: true });
+        if (obj.type === 'walker') fields.push({ key: 'speed', label: '속도' }, { key: 'dir', label: '방향' });
+        if (obj.type === 'patrol') fields.push({ key: 'speed', label: '속도' }, { key: 'minX', label: 'minX' }, { key: 'maxX', label: 'maxX' });
+        if (obj.type === 'jumper') fields.push({ key: 'range', label: '거리' });
+        if (obj.type === 'shooter') fields.push({ key: 'interval', label: '간격' });
+        if (obj.type === 'falling') fields.push({ key: 'triggerX', label: 'trigX' });
+        if (obj.type === 'spike') fields.push({ key: 'interval', label: '주기' });
+
+        fields.forEach(f => {
+            const row = document.createElement('div');
+            row.className = 'row';
+            const inputType = f.isText ? 'text' : 'number';
+            row.innerHTML = `<label>${f.label}:</label><input type="${inputType}" value="${obj[f.key] || ''}" data-key="${f.key}">`;
+            row.querySelector('input').addEventListener('change', (ev) => {
+                obj[f.key] = f.isText ? ev.target.value : parseFloat(ev.target.value);
+                draw(); updateList();
+            });
+            container.appendChild(row);
+        });
+    }
+
+    // ==========================================
+    // 배치 목록
+    // ==========================================
+    function updateList() {
+        const list = document.getElementById('placed-list');
+        list.innerHTML = '';
+        objects.forEach((obj, i) => {
+            const div = document.createElement('div');
+            div.className = 'placed-item';
+            const lbl = LABELS[obj.type] || obj.type;
+            div.innerHTML = `<span>${lbl} (${Math.round(obj.x)},${Math.round(obj.y)})</span><span class="del" onclick="removeObj(${i})">✕</span>`;
+            div.addEventListener('click', (ev) => {
+                if (ev.target.classList.contains('del')) return;
+                selectedIdx = i;
+                currentTool = 'select';
+                scrollX = Math.max(0, obj.x - canvas.width / scale / 2);
+                scrollY = Math.max(0, obj.y - canvas.height / scale / 2);
+                updateProps(); draw();
+            });
+            if (i === selectedIdx) div.style.background = '#2a3a5e';
+            list.appendChild(div);
+        });
+    }
+
+    function removeObj(idx) {
+        objects.splice(idx, 1);
+        selectedIdx = -1;
+        updateProps(); updateList(); draw();
+    }
+
+    function clearAll() {
+        if (confirm('전체 삭제?')) { objects = []; selectedIdx = -1; updateProps(); updateList(); draw(); }
+    }
+
+    function applyMapSize() {
+        mapW = parseInt(document.getElementById('map-width').value) || 4000;
+        mapH = parseInt(document.getElementById('map-height').value) || 1200;
+        spawnX = parseInt(document.getElementById('spawn-x').value) || 100;
+        spawnY = parseInt(document.getElementById('spawn-y').value) || mapH - 80;
+        draw();
+    }
+
+    // ==========================================
+    // 내보내기 / 불러오기
+    // ==========================================
+    function exportData() {
+        const platforms = objects.filter(o => o.type === 'platform').map(o => `            { x: ${o.x}, y: ${o.y}, w: ${o.w}, h: ${o.h} },`);
+        const walls = objects.filter(o => o.type === 'wall').map(o => `            { x: ${o.x}, y: ${o.y}, w: ${o.w}, h: ${o.h} },`);
+        const movingPlats = objects.filter(o => o.type === 'moving_h' || o.type === 'moving_v').map(o =>
+            `            { x: ${o.x}, y: ${o.y}, w: ${o.w}, h: ${o.h}, moveType: '${o.type === 'moving_h' ? 'horizontal' : 'vertical'}', distance: ${o.distance}, speed: ${o.speed} },`
+        );
+        const items = objects.filter(o => o.type === 'item').map(o => `            { x: ${o.x}, y: ${o.y}, name: '${o.name}' },`);
+        const enemies = objects.filter(o => !['platform', 'wall', 'item', 'moving_h', 'moving_v'].includes(o.type)).map(o => {
+            const parts = [`type: '${o.type}'`, `x: ${o.x}`, `y: ${o.y}`];
+            if (o.type === 'walker') parts.push(`speed: ${o.speed}`, `dir: ${o.dir}`);
+            if (o.type === 'patrol') parts.push(`speed: ${o.speed}`, `minX: ${o.minX}`, `maxX: ${o.maxX}`);
+            if (o.type === 'jumper') parts.push(`range: ${o.range}`);
+            if (o.type === 'shooter') parts.push(`interval: ${o.interval}`);
+            if (o.type === 'falling') parts.push(`triggerX: ${o.triggerX}`);
+            if (o.type === 'spike') parts.push(`interval: ${o.interval}`);
+            return `            { ${parts.join(', ')} },`;
+        });
+
+        const output = `        map: { width: ${mapW}, height: ${mapH} },
+        spawn: { x: ${spawnX}, y: ${spawnY} },
+        platforms: [
+${platforms.join('\n')}
+        ],
+        walls: [
+${walls.join('\n')}
+        ],
+        movingPlatforms: [
+${movingPlats.join('\n')}
+        ],
+        items: [
+${items.join('\n')}
+        ],
+        enemies: [
+${enemies.join('\n')}
+        ],`;
+
+        const ta = prompt('데이터 (복사하세요):', output);
+        if (!ta) { navigator.clipboard.writeText(output); alert('클립보드에 복사됨!'); }
+    }
+
+    function importData() {
+        const json = prompt('JSON 데이터를 붙여넣으세요:');
+        if (!json) return;
+        try {
+            const data = JSON.parse(json);
+            objects = data;
+            selectedIdx = -1;
+            updateProps(); updateList(); draw();
+        } catch (e) { alert('JSON 파싱 실패: ' + e.message); }
+    }
+
+    // ==========================================
+    // 테스트 플레이
+    // ==========================================
+    let testGame = null;
+
+    function testPlay() {
+        spawnX = parseInt(document.getElementById('spawn-x').value) || 100;
+        spawnY = parseInt(document.getElementById('spawn-y').value) || mapH - 80;
+
+        // 현재 에디터 데이터로 임시 스테이지 생성
+        const testStage = {
+            id: 'test', name: '테스트', era: '테스트', route: 'normal', stageNumber: 0,
+            map: { width: mapW, height: mapH, backgroundColor: '#16213e', platformColor: 0x3a506b, accentColor: 0x2d4059 },
+            spawn: { x: spawnX, y: spawnY },
+            timeLimit: 180,
+            platforms: objects.filter(o => o.type === 'platform').map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
+            walls: objects.filter(o => o.type === 'wall').map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
+            movingPlatforms: objects.filter(o => o.type === 'moving_h' || o.type === 'moving_v').map(o => ({
+                x: o.x, y: o.y, w: o.w, h: o.h,
+                moveType: o.type === 'moving_h' ? 'horizontal' : 'vertical',
+                distance: o.distance, speed: o.speed
+            })),
+            items: objects.filter(o => o.type === 'item').map(o => ({ x: o.x, y: o.y, name: o.name || '???' })),
+            itemPresets: null,
+            enemies: objects.filter(o => !['platform', 'wall', 'item', 'moving_h', 'moving_v'].includes(o.type)).map(o => {
+                const e = { type: o.type, x: o.x, y: o.y };
+                if (o.speed != null) e.speed = o.speed;
+                if (o.dir != null) e.dir = o.dir;
+                if (o.minX != null) e.minX = o.minX;
+                if (o.maxX != null) e.maxX = o.maxX;
+                if (o.range != null) e.range = o.range;
+                if (o.interval != null) e.interval = o.interval;
+                if (o.triggerX != null) e.triggerX = o.triggerX;
+                return e;
+            }),
+        };
+
+        // STAGE_DATA에 임시 등록
+        STAGE_DATA['test'] = testStage;
+
+        document.getElementById('game-overlay').style.display = 'block';
+
+        testGame = new Phaser.Game({
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container-test',
+            backgroundColor: '#1a1a2e',
+            physics: { default: 'arcade', arcade: { gravity: { y: 800 }, debug: false } },
+            scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+            scene: [GameScene],
+        });
+
+        // GameScene에 testStage를 전달
+        testGame.events.once('ready', () => {
+            testGame.scene.start('GameScene', { stageId: 'test' });
+        });
+    }
+
+    function stopTestPlay() {
+        if (testGame) {
+            testGame.destroy(true);
+            testGame = null;
+        }
+        document.getElementById('game-overlay').style.display = 'none';
+        // 임시 데이터 제거
+        delete STAGE_DATA['test'];
+    }
     </script>
 </body>
 </html>
