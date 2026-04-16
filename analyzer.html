@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>밸런스 분석기</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1a2e; color: #fff; font-family: monospace; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 320px; background: #16213e; padding: 12px; overflow-y: auto; border-right: 2px solid #333; font-size: 12px; }
+        #sidebar h2 { font-size: 16px; margin-bottom: 8px; color: #ffd700; }
+        #sidebar h3 { font-size: 13px; margin: 10px 0 4px; color: #4fc3f7; border-bottom: 1px solid #333; padding-bottom: 2px; }
+        #sidebar select { width: 100%; padding: 6px; margin: 4px 0; background: #0f3460; color: #fff; border: 1px solid #444; font-family: monospace; }
+        #canvas-wrap { flex: 1; overflow: hidden; position: relative; }
+        canvas { display: block; }
+        .result { margin: 4px 0; padding: 6px 8px; border-radius: 4px; font-size: 11px; line-height: 1.5; }
+        .result.pass { background: #0a3a0a; border: 1px solid #2a8a2a; }
+        .result.warn { background: #3a3a0a; border: 1px solid #8a8a2a; }
+        .result.fail { background: #3a0a0a; border: 1px solid #8a2a2a; }
+        .metric { display: flex; justify-content: space-between; margin: 2px 0; }
+        .metric .label { color: #aaa; }
+        .metric .value { color: #fff; font-weight: bold; }
+        .legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+        .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h2>밸런스 분석기</h2>
+        <select id="stageSelect"></select>
+
+        <h3>범례</h3>
+        <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#A08860"></div> 글자 플랫폼</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#8B7355"></div> 게임 플랫폼</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#00ff88"></div> 스폰</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ffd700"></div> 아이템</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#00aaff;opacity:0.3"></div> 점프 도달 범위</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ff00ff;opacity:0.3"></div> 대시 도달 범위</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ff4444"></div> 적</div>
+        </div>
+
+        <h3>물리 상수</h3>
+        <div class="metric"><span class="label">이동속도</span><span class="value">280 px/s</span></div>
+        <div class="metric"><span class="label">점프높이</span><span class="value">~126 px</span></div>
+        <div class="metric"><span class="label">점프수평</span><span class="value">~315 px</span></div>
+        <div class="metric"><span class="label">대시거리</span><span class="value">300 px</span></div>
+        <div class="metric"><span class="label">점프+대시</span><span class="value">~615 px</span></div>
+
+        <h3>도달 가능성</h3>
+        <div id="reachResults"></div>
+
+        <h3>시간 분석</h3>
+        <div id="timeResults"></div>
+
+        <h3>난이도 요약</h3>
+        <div id="diffResults"></div>
+    </div>
+
+    <div id="canvas-wrap">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <!-- 게임 데이터 로드 -->
+    <script src="js/data/HangulMaps.js"></script>
+    <script src="js/data/StageData.js"></script>
+    <script src="js/data/StageProgress.js"></script>
+    <script>
+    // ==========================================
+    // 물리 상수
+    // ==========================================
+    const PHYS = {
+        moveSpeed: 280,
+        jumpSpeed: 450,
+        gravity: 800,
+        dashDistance: 300,
+        dashSpeed: 1200,
+        playerW: 32,
+        playerH: 48,
+        get maxJumpHeight() { return this.jumpSpeed * this.jumpSpeed / (2 * this.gravity); }, // ~126px
+        get jumpAirTime() { return 2 * this.jumpSpeed / this.gravity; }, // ~1.125s
+        get jumpHorizontal() { return this.moveSpeed * this.jumpAirTime; }, // ~315px
+        get maxHorizontal() { return this.jumpHorizontal + this.dashDistance; }, // ~615px
+    };
+
+    // ==========================================
+    // 플랫폼 수집 (글자 + 게임플레이)
+    // ==========================================
+    function getAllPlatforms(stageId) {
+        const sd = STAGE_DATA[stageId];
+        const platforms = [];
+
+        // 글자 플랫폼
+        if (sd.letterChar) {
+            const letterPlats = generateLetterPlatforms(sd.letterChar, sd.map.width);
+            letterPlats.forEach(p => platforms.push({ ...p, isLetter: true }));
+        }
+
+        // 게임플레이 플랫폼
+        sd.platforms.forEach(p => platforms.push({ ...p, isLetter: false }));
+
+        // 벽 (위에 올라설 수 있는 구조물)
+        if (sd.walls) {
+            sd.walls.forEach(w => platforms.push({ ...w, isLetter: false, isWall: true }));
+        }
+
+        return platforms;
+    }
+
+    // ==========================================
+    // 도달 가능성 분석
+    // ==========================================
+    function canReachPlatform(fromPlat, toPlat) {
+        // fromPlat 위에서 toPlat 위로 갈 수 있는지
+        const fLeft = fromPlat.x;
+        const fRight = fromPlat.x + fromPlat.w;
+        const fTop = fromPlat.y;
+
+        const tLeft = toPlat.x;
+        const tRight = toPlat.x + toPlat.w;
+        const tTop = toPlat.y;
+
+        // 수평 간격 (가장 가까운 엣지 사이)
+        let hGap = 0;
+        if (tLeft > fRight) hGap = tLeft - fRight;
+        else if (fLeft > tRight) hGap = fLeft - tRight;
+        // 겹치면 hGap = 0
+
+        // 수직 차이 (양수 = 위로 가야 함, Phaser에서 y는 아래로 증가)
+        const vDiff = fTop - tTop; // 양수 = 목표가 위에 있음
+
+        if (vDiff > 0) {
+            // 위로 올라가야 함
+            if (vDiff > PHYS.maxJumpHeight) return { reachable: false, method: 'too_high' };
+
+            // 높이 vDiff까지 점프하는 데 걸리는 시간 기반 수평 도달 거리
+            // 간단한 모델: 높이에 비례해서 수평 거리 감소
+            const heightRatio = vDiff / PHYS.maxJumpHeight;
+            const availHorizontal = PHYS.jumpHorizontal * (1 - heightRatio * 0.5);
+
+            if (hGap <= availHorizontal + PHYS.dashDistance) {
+                return { reachable: true, method: hGap > availHorizontal ? 'jump+dash' : 'jump' };
+            }
+            return { reachable: false, method: 'too_far_up' };
+        } else {
+            // 같은 높이 또는 아래로
+            const fallHeight = -vDiff;
+            const fallTime = Math.sqrt(2 * fallHeight / PHYS.gravity);
+            const totalAirTime = PHYS.jumpAirTime + fallTime;
+            const availHorizontal = PHYS.moveSpeed * totalAirTime;
+
+            if (hGap <= availHorizontal + PHYS.dashDistance) {
+                if (hGap === 0 && fallHeight === 0) return { reachable: true, method: 'walk' };
+                if (hGap <= availHorizontal) return { reachable: true, method: fallHeight > 0 ? 'fall' : 'walk' };
+                return { reachable: true, method: 'fall+dash' };
+            }
+            return { reachable: false, method: 'too_far' };
+        }
+    }
+
+    // 도달 가능성 그래프 생성 (BFS)
+    function buildReachabilityGraph(platforms) {
+        const n = platforms.length;
+        const adj = Array.from({ length: n }, () => []);
+
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                if (i === j) continue;
+                const result = canReachPlatform(platforms[i], platforms[j]);
+                if (result.reachable) {
+                    adj[i].push({ to: j, method: result.method });
+                }
+            }
+        }
+        return adj;
+    }
+
+    // 스폰 포인트가 어느 플랫폼 위에 있는지
+    function findSpawnPlatform(platforms, spawn) {
+        let best = -1;
+        let bestDist = Infinity;
+        for (let i = 0; i < platforms.length; i++) {
+            const p = platforms[i];
+            if (spawn.x >= p.x && spawn.x <= p.x + p.w) {
+                const dy = Math.abs(spawn.y - p.y);
+                if (dy < bestDist) {
+                    bestDist = dy;
+                    best = i;
+                }
+            }
+        }
+        // 가장 가까운 플랫폼 (x가 범위 안에 없어도)
+        if (best === -1) {
+            for (let i = 0; i < platforms.length; i++) {
+                const p = platforms[i];
+                const cx = p.x + p.w / 2;
+                const dist = Math.hypot(spawn.x - cx, spawn.y - p.y);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = i;
+                }
+            }
+        }
+        return best;
+    }
+
+    // 아이템이 어느 플랫폼 위에 있는지
+    function findItemPlatform(platforms, item) {
+        let best = -1;
+        let bestDist = Infinity;
+        for (let i = 0; i < platforms.length; i++) {
+            const p = platforms[i];
+            const cx = p.x + p.w / 2;
+            const dist = Math.hypot(item.x - cx, item.y - p.y);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = i;
+            }
+        }
+        return { index: best, distance: bestDist };
+    }
+
+    // BFS 최단 경로
+    function bfsPath(adj, from, to) {
+        const n = adj.length;
+        const visited = new Array(n).fill(false);
+        const parent = new Array(n).fill(-1);
+        const queue = [from];
+        visited[from] = true;
+
+        while (queue.length > 0) {
+            const cur = queue.shift();
+            if (cur === to) {
+                // 경로 복원
+                const path = [];
+                let c = to;
+                while (c !== -1) { path.unshift(c); c = parent[c]; }
+                return path;
+            }
+            for (const edge of adj[cur]) {
+                if (!visited[edge.to]) {
+                    visited[edge.to] = true;
+                    parent[edge.to] = cur;
+                    queue.push(edge.to);
+                }
+            }
+        }
+        return null; // 도달 불가
+    }
+
+    // 플랫폼 간 이동 시간 추정
+    function estimateTravelTime(from, to) {
+        const dist = Math.hypot(
+            (to.x + to.w / 2) - (from.x + from.w / 2),
+            to.y - from.y
+        );
+        return dist / PHYS.moveSpeed;
+    }
+
+    // ==========================================
+    // 전체 분석 실행
+    // ==========================================
+    function analyzeStage(stageId) {
+        const sd = STAGE_DATA[stageId];
+        const platforms = getAllPlatforms(stageId);
+        const adj = buildReachabilityGraph(platforms);
+        const spawnIdx = findSpawnPlatform(platforms, sd.spawn);
+
+        // 아이템 위치 결정
+        let items;
+        if (sd.itemPresets && sd.itemPresets.length > 0) {
+            items = sd.itemPresets[0]; // 첫 번째 프리셋으로 분석
+        } else {
+            items = sd.items || [];
+        }
+        const itemNames = sd.itemNames || items.map(it => it.name || '???');
+
+        // 각 아이템 도달 가능성
+        const itemResults = items.map((item, idx) => {
+            const { index: platIdx, distance: platDist } = findItemPlatform(platforms, item);
+            const path = bfsPath(adj, spawnIdx, platIdx);
+            const reachable = path !== null;
+
+            // 경로 따라 이동 시간 추정
+            let travelTime = 0;
+            if (path && path.length > 1) {
+                for (let i = 0; i < path.length - 1; i++) {
+                    travelTime += estimateTravelTime(platforms[path[i]], platforms[path[i + 1]]);
+                }
+            }
+
+            return {
+                name: itemNames[idx] || item.name || '???',
+                x: item.x, y: item.y,
+                platformIndex: platIdx,
+                platformDist: platDist,
+                reachable,
+                pathLength: path ? path.length : -1,
+                estimatedTime: travelTime,
+                path,
+            };
+        });
+
+        // 전체 수집 최소 시간 (그리디: 가장 가까운 아이템부터)
+        let totalMinTime = 0;
+        const remaining = [...itemResults.filter(r => r.reachable)];
+        let currentPlat = spawnIdx;
+        const collectOrder = [];
+        while (remaining.length > 0) {
+            let bestIdx = 0;
+            let bestTime = Infinity;
+            for (let i = 0; i < remaining.length; i++) {
+                const t = estimateTravelTime(platforms[currentPlat], platforms[remaining[i].platformIndex]);
+                if (t < bestTime) { bestTime = t; bestIdx = i; }
+            }
+            totalMinTime += bestTime;
+            currentPlat = remaining[bestIdx].platformIndex;
+            collectOrder.push(remaining[bestIdx].name);
+            remaining.splice(bestIdx, 1);
+        }
+
+        // 적 분석
+        const enemies = sd.enemies || [];
+        const enemyCounts = {};
+        enemies.forEach(e => { enemyCounts[e.type] = (enemyCounts[e.type] || 0) + 1; });
+
+        return {
+            stageId,
+            stageName: `${sd.era} - ${sd.name}`,
+            mapSize: { w: sd.map.width, h: sd.map.height },
+            letterChar: sd.letterChar || null,
+            platformCount: platforms.length,
+            letterPlatformCount: platforms.filter(p => p.isLetter).length,
+            gamePlatformCount: platforms.filter(p => !p.isLetter).length,
+            spawnIndex: spawnIdx,
+            itemResults,
+            allReachable: itemResults.every(r => r.reachable),
+            reachableCount: itemResults.filter(r => r.reachable).length,
+            totalMinTime: Math.round(totalMinTime),
+            timeLimit: sd.timeLimit,
+            timeMargin: sd.timeLimit - Math.round(totalMinTime),
+            collectOrder,
+            enemyCounts,
+            enemyTotal: enemies.length,
+            platforms,
+            adj,
+        };
+    }
+
+    // ==========================================
+    // 시각화
+    // ==========================================
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let currentAnalysis = null;
+
+    function resizeCanvas() {
+        const wrap = document.getElementById('canvas-wrap');
+        canvas.width = wrap.clientWidth;
+        canvas.height = wrap.clientHeight;
+        if (currentAnalysis) drawMap(currentAnalysis);
+    }
+
+    function drawMap(analysis) {
+        const { platforms, adj, spawnIndex } = analysis;
+        const sd = STAGE_DATA[analysis.stageId];
+        const mapW = sd.map.width;
+        const mapH = sd.map.height;
+
+        // 스케일 계산 (맵을 캔버스에 맞추기)
+        const scaleX = canvas.width / mapW;
+        const scaleY = canvas.height / mapH;
+        const scale = Math.min(scaleX, scaleY) * 0.95;
+        const offsetX = (canvas.width - mapW * scale) / 2;
+        const offsetY = (canvas.height - mapH * scale) / 2;
+
+        const tx = (x) => x * scale + offsetX;
+        const ty = (y) => y * scale + offsetY;
+        const tw = (w) => w * scale;
+        const th = (h) => Math.max(h * scale, 1);
+
+        // 배경
+        ctx.fillStyle = sd.map.backgroundColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 맵 영역
+        ctx.strokeStyle = '#333';
+        ctx.strokeRect(tx(0), ty(0), tw(mapW), th(mapH));
+
+        // 카메라 뷰 범위 표시 (스폰 위치 기준, 1/25 영역)
+        const camW = 800 / 1.3;  // ~615
+        const camH = 600 / 1.3;  // ~461
+        ctx.strokeStyle = '#ffffff33';
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(
+            tx(sd.spawn.x - camW / 2), ty(sd.spawn.y - camH / 2),
+            tw(camW), th(camH)
+        );
+        ctx.setLineDash([]);
+
+        // 도달 가능성 연결선 (스폰→아이템 경로만)
+        analysis.itemResults.forEach(item => {
+            if (!item.path) return;
+            ctx.strokeStyle = item.reachable ? '#00ff8844' : '#ff444444';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let i = 0; i < item.path.length - 1; i++) {
+                const a = platforms[item.path[i]];
+                const b = platforms[item.path[i + 1]];
+                ctx.moveTo(tx(a.x + a.w / 2), ty(a.y));
+                ctx.lineTo(tx(b.x + b.w / 2), ty(b.y));
+            }
+            ctx.stroke();
+        });
+
+        // 플랫폼 그리기
+        platforms.forEach((p, i) => {
+            if (p.isLetter) {
+                ctx.fillStyle = '#A08860';
+            } else if (p.isWall) {
+                ctx.fillStyle = '#6B4226';
+            } else {
+                ctx.fillStyle = '#8B7355';
+            }
+            ctx.fillRect(tx(p.x), ty(p.y), tw(p.w), Math.max(th(p.h), 2));
+        });
+
+        // 스폰 도달 범위 (점프)
+        ctx.fillStyle = '#00aaff15';
+        ctx.fillRect(
+            tx(sd.spawn.x - PHYS.jumpHorizontal),
+            ty(sd.spawn.y - PHYS.maxJumpHeight),
+            tw(PHYS.jumpHorizontal * 2),
+            th(PHYS.maxJumpHeight)
+        );
+
+        // 적
+        const enemies = sd.enemies || [];
+        enemies.forEach(e => {
+            ctx.fillStyle = '#ff4444';
+            ctx.fillRect(tx(e.x) - 3, ty(e.y) - 3, 6, 6);
+        });
+
+        // 아이템
+        const items = sd.itemPresets ? sd.itemPresets[0] : (sd.items || []);
+        const itemNames = sd.itemNames || items.map(it => it.name || '???');
+        items.forEach((item, idx) => {
+            const reachable = analysis.itemResults[idx]?.reachable;
+            ctx.fillStyle = reachable ? '#ffd700' : '#ff4444';
+            ctx.beginPath();
+            ctx.arc(tx(item.x), ty(item.y), 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 번호
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px monospace';
+            ctx.fillText(`${idx + 1}`, tx(item.x) + 7, ty(item.y) + 3);
+        });
+
+        // 스폰
+        ctx.fillStyle = '#00ff88';
+        ctx.fillRect(tx(sd.spawn.x) - 4, ty(sd.spawn.y) - 6, 8, 12);
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px monospace';
+        ctx.fillText('S', tx(sd.spawn.x) - 3, ty(sd.spawn.y) - 8);
+
+        // 글자 표시 (좌상단)
+        if (analysis.letterChar) {
+            ctx.fillStyle = '#ffffff22';
+            ctx.font = '24px monospace';
+            ctx.fillText(analysis.letterChar, tx(10), ty(40));
+        }
+    }
+
+    // ==========================================
+    // UI 업데이트
+    // ==========================================
+    function updateResults(analysis) {
+        // 도달 가능성
+        const reachEl = document.getElementById('reachResults');
+        reachEl.innerHTML = analysis.itemResults.map((item, i) => {
+            const status = item.reachable ? 'pass' : 'fail';
+            const icon = item.reachable ? '\u2705' : '\u274C';
+            const detail = item.reachable
+                ? `${item.pathLength}단계, ~${Math.round(item.estimatedTime)}초`
+                : `도달 불가 (플랫폼 거리: ${Math.round(item.platformDist)}px)`;
+            return `<div class="result ${status}">${icon} ${i + 1}. ${item.name}<br><small>${detail}</small></div>`;
+        }).join('');
+
+        // 시간 분석
+        const timeEl = document.getElementById('timeResults');
+        const timeStatus = analysis.timeMargin > 60 ? 'pass' : (analysis.timeMargin > 20 ? 'warn' : 'fail');
+        timeEl.innerHTML = `
+            <div class="result ${timeStatus}">
+                <div class="metric"><span class="label">제한시간</span><span class="value">${analysis.timeLimit}초</span></div>
+                <div class="metric"><span class="label">최소수집시간(추정)</span><span class="value">~${analysis.totalMinTime}초</span></div>
+                <div class="metric"><span class="label">여유시간</span><span class="value">${analysis.timeMargin}초</span></div>
+                <div class="metric"><span class="label">수집순서</span><span class="value" style="font-size:9px">${analysis.collectOrder.join(' → ')}</span></div>
+            </div>
+        `;
+
+        // 난이도 요약
+        const diffEl = document.getElementById('diffResults');
+        const allReach = analysis.allReachable;
+        const diffStatus = allReach ? (analysis.timeMargin > 30 ? 'pass' : 'warn') : 'fail';
+        diffEl.innerHTML = `
+            <div class="result ${diffStatus}">
+                <div class="metric"><span class="label">스테이지</span><span class="value">${analysis.stageName}</span></div>
+                <div class="metric"><span class="label">글자</span><span class="value">${analysis.letterChar || '-'}</span></div>
+                <div class="metric"><span class="label">맵 크기</span><span class="value">${analysis.mapSize.w} x ${analysis.mapSize.h}</span></div>
+                <div class="metric"><span class="label">플랫폼</span><span class="value">${analysis.platformCount}개 (글자 ${analysis.letterPlatformCount} + 게임 ${analysis.gamePlatformCount})</span></div>
+                <div class="metric"><span class="label">아이템 도달</span><span class="value">${analysis.reachableCount} / ${analysis.itemResults.length}</span></div>
+                <div class="metric"><span class="label">적</span><span class="value">${analysis.enemyTotal}마리 ${Object.entries(analysis.enemyCounts).map(([k,v])=>`${k}:${v}`).join(' ')}</span></div>
+                <div class="metric"><span class="label">판정</span><span class="value">${!allReach ? '\u274C 도달 불가 아이템 있음' : analysis.timeMargin < 20 ? '\u26A0 시간 빠듯' : '\u2705 클리어 가능'}</span></div>
+            </div>
+        `;
+    }
+
+    // ==========================================
+    // 초기화
+    // ==========================================
+    function init() {
+        const select = document.getElementById('stageSelect');
+
+        // 모든 스테이지 옵션 생성
+        ['normal', 'red', 'true_red'].forEach(route => {
+            STAGE_ORDER[route].forEach(stageId => {
+                const sd = STAGE_DATA[stageId];
+                const char = HANGUL_STAGE_CHARS[stageId] || '';
+                const opt = document.createElement('option');
+                opt.value = stageId;
+                opt.textContent = `[${char}] ${sd.era} - ${sd.name} (${stageId})`;
+                select.appendChild(opt);
+            });
+        });
+
+        select.addEventListener('change', () => {
+            currentAnalysis = analyzeStage(select.value);
+            updateResults(currentAnalysis);
+            drawMap(currentAnalysis);
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 첫 스테이지 자동 분석
+        select.dispatchEvent(new Event('change'));
+    }
+
+    init();
+    </script>
+</body>
+</html>
