@@ -180,7 +180,9 @@ class PlayerController {
 
         let anim;
         if (this.isDashing) {
-            anim = `run_${dir}`;
+            // 대시 중: 현재 프레임 고정 (자세 유지)
+            player.anims.pause();
+            return;
         } else if (!onGround) {
             anim = `jump_${dir}`;
         } else if (Math.abs(vx) > 20) {
@@ -282,16 +284,24 @@ class PlayerController {
         player.setVelocityX(DASH_SPEED * dir);
         player.setAlpha(0.6);
 
-        // 잔상 효과
+        // 잔상 효과 (대시 중 연속 생성)
         if (this.options.afterImage) {
-            const afterImage = scene.add.sprite(player.x, player.y, player.texture.key)
-                .setAlpha(0.4).setDisplaySize(player.displayWidth, player.displayHeight);
-            if (scene.uiCamera) scene.uiCamera.ignore(afterImage);
-            scene.tweens.add({
-                targets: afterImage,
-                alpha: 0, duration: 300,
-                onComplete: () => afterImage.destroy()
-            });
+            const createAfterImage = () => {
+                if (!this.isDashing) return;
+                const afterImage = scene.add.sprite(player.x, player.y, player.texture.key)
+                    .setAlpha(0.5).setDisplaySize(player.displayWidth, player.displayHeight);
+                if (player.anims.currentFrame) {
+                    afterImage.setTexture(player.anims.currentFrame.textureKey);
+                }
+                if (scene.uiCamera) scene.uiCamera.ignore(afterImage);
+                scene.tweens.add({
+                    targets: afterImage,
+                    alpha: 0, duration: 200,
+                    onComplete: () => afterImage.destroy()
+                });
+                scene.time.delayedCall(50, createAfterImage);
+            };
+            createAfterImage();
         }
 
         scene.time.delayedCall(this.dashTime, () => {
