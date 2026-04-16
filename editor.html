@@ -56,7 +56,8 @@
         <div class="row"><label>Y:</label><input type="number" id="spawn-y" value="1120"></div>
 
         <h3>도구 선택</h3>
-        <button class="tool-btn" data-tool="platform" onclick="selectTool('platform')"><span class="preview" style="background:#3a506b"></span>발판</button>
+        <button class="tool-btn" data-tool="letter" onclick="selectTool('letter')"><span class="preview" style="background:#C8A96E"></span>글자발판</button>
+        <button class="tool-btn" data-tool="platform" onclick="selectTool('platform')"><span class="preview" style="background:#5C4833"></span>발판</button>
         <button class="tool-btn" data-tool="moving_h" onclick="selectTool('moving_h')"><span class="preview" style="background:#00aaff"></span>수평이동</button>
         <button class="tool-btn" data-tool="moving_v" onclick="selectTool('moving_v')"><span class="preview" style="background:#00ffaa"></span>수직이동</button>
         <button class="tool-btn" data-tool="wall" onclick="selectTool('wall')"><span class="preview" style="background:#2d4059"></span>벽</button>
@@ -130,7 +131,7 @@
 
     // 색상
     const COLORS = {
-        platform: '#5C4833', wall: '#2d4059', item: '#ffd700',
+        letter: '#C8A96E', platform: '#5C4833', wall: '#2d4059', item: '#ffd700',
         moving_h: '#00aaff', moving_v: '#00ffaa',
         walker: '#ff4444', patrol: '#ff6644', jumper: '#ff8800',
         shooter: '#8844ff', falling: '#888888', spike: '#aa4444',
@@ -138,7 +139,7 @@
     };
 
     const LABELS = {
-        platform: '발판', wall: '벽', item: '아이템',
+        letter: '글자', platform: '발판', wall: '벽', item: '아이템',
         moving_h: '수평', moving_v: '수직',
         walker: '전진', patrol: '왕복', jumper: '점프',
         shooter: '사격', falling: '낙석', spike: '가시',
@@ -146,6 +147,7 @@
 
     // 기본값
     const DEFAULTS = {
+        letter: { w: 200, h: 20 },
         platform: { w: 150, h: 20 },
         wall: { w: 30, h: 270 },
         moving_h: { w: 120, h: 16, distance: 200, speed: 50 },
@@ -195,16 +197,19 @@
         document.getElementById('spawn-x').value = spawnX;
         document.getElementById('spawn-y').value = spawnY;
 
-        // 글자 플랫폼 생성 (읽기 전용, 편집 불가)
+        // 글자 플랫폼 생성 (편집 가능한 오브젝트로 로드)
+        letterPlatforms = [];
         if (sd.letterChar && typeof generateLetterPlatforms === 'function') {
-            letterPlatforms = generateLetterPlatforms(sd.letterChar, sd.map.width);
+            const generated = generateLetterPlatforms(sd.letterChar, sd.map.width);
+            generated.forEach(p => objects.push({ type: 'letter', x: p.x, y: p.y, w: p.w, h: p.h }));
         }
 
         // 글자 정보 표시
         const letterInfo = document.getElementById('letter-info');
         if (sd.letterChar) {
             const charInfo = HANGUL_STAGE_CHARS[stageId] || '';
-            letterInfo.innerHTML = `<div class="letter-info">글자: <strong style="font-size:18px;color:#C8A96E">${sd.letterChar}</strong> | 글자 플랫폼: ${letterPlatforms.length}개 (자동 생성, 편집 불가)</div>`;
+            const letterCount = objects.filter(o => o.type === 'letter').length;
+            letterInfo.innerHTML = `<div class="letter-info">글자: <strong style="font-size:18px;color:#C8A96E">${sd.letterChar}</strong> | 글자 플랫폼: ${letterCount}개 (편집 가능)</div>`;
         } else {
             letterInfo.innerHTML = '<div class="letter-info" style="color:#555">글자 미적용 스테이지</div>';
         }
@@ -292,15 +297,7 @@
         ctx.lineWidth = 2;
         ctx.strokeRect(0, 0, mapW, mapH);
 
-        // 글자 플랫폼 (읽기 전용, 먼저 그려서 뒤에 깔림)
-        letterPlatforms.forEach(p => {
-            ctx.fillStyle = COLORS.letter;
-            ctx.globalAlpha = 0.7;
-            ctx.fillRect(p.x, p.y, p.w, Math.max(p.h, 2));
-            ctx.globalAlpha = 1;
-        });
-
-        // 글자 라벨 (좌상단)
+        // 글자 라벨
         if (currentLetterChar) {
             ctx.fillStyle = 'rgba(200,169,110,0.15)';
             ctx.font = `${mapW * 0.8}px sans-serif`;
@@ -324,6 +321,7 @@
             ctx.globalAlpha = isSelected ? 1 : 0.8;
 
             switch (obj.type) {
+                case 'letter':
                 case 'platform':
                 case 'wall':
                     ctx.fillStyle = COLORS[obj.type];
@@ -574,6 +572,7 @@
     // 내보내기 / 불러오기
     // ==========================================
     function exportData() {
+        const letterPlats = objects.filter(o => o.type === 'letter').map(o => `            { x: ${o.x}, y: ${o.y}, w: ${o.w}, h: ${o.h}, isLetter: true },`);
         const platforms = objects.filter(o => o.type === 'platform').map(o => `            { x: ${o.x}, y: ${o.y}, w: ${o.w}, h: ${o.h} },`);
         const walls = objects.filter(o => o.type === 'wall').map(o => `            { x: ${o.x}, y: ${o.y}, w: ${o.w}, h: ${o.h} },`);
         const movingPlats = objects.filter(o => o.type === 'moving_h' || o.type === 'moving_v').map(o =>
@@ -596,7 +595,10 @@
 
         const output = `        map: { width: ${mapW}, height: ${mapH} },${letterLine}
         spawn: { x: ${spawnX}, y: ${spawnY} },
+        // 글자 플랫폼 (${letterPlats.length}개)
+        // ${letterPlats.length > 0 ? '아래 platforms에 isLetter: true로 포함' : '없음'}
         platforms: [
+${letterPlats.join('\n')}
 ${platforms.join('\n')}
         ],
         walls: [
@@ -643,7 +645,8 @@ ${enemies.join('\n')}
 
         const testStage = {
             id: 'test', name: '테스트', era: '테스트', route: 'normal', stageNumber: 0,
-            letterChar: currentLetterChar,
+            // letterChar 제거: 에디터에서 수동 배치한 글자 플랫폼 사용
+            letterChar: null,
             map: {
                 width: mapW, height: mapH,
                 backgroundColor: (sd && sd.map.backgroundColor) || '#16213e',
@@ -653,7 +656,10 @@ ${enemies.join('\n')}
             },
             spawn: { x: spawnX, y: spawnY },
             timeLimit: 180,
-            platforms: objects.filter(o => o.type === 'platform').map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
+            platforms: [
+                ...objects.filter(o => o.type === 'letter').map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h, isLetter: true })),
+                ...objects.filter(o => o.type === 'platform').map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
+            ],
             walls: objects.filter(o => o.type === 'wall').map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
             movingPlatforms: objects.filter(o => o.type === 'moving_h' || o.type === 'moving_v').map(o => ({
                 x: o.x, y: o.y, w: o.w, h: o.h,
