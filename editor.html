@@ -35,14 +35,16 @@
         #game-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: #000; }
         #game-overlay .close-btn { position: fixed; top: 10px; right: 10px; z-index: 101; background: #ff4444; color: #fff; border: none; padding: 8px 16px; cursor: pointer; font-family: monospace; font-size: 14px; }
         #game-container-test { width: 100%; height: 100%; }
+        .letter-info { background: #2a2a0a; border: 1px solid #555500; padding: 4px 6px; margin: 4px 0; border-radius: 3px; font-size: 11px; }
     </style>
 </head>
 <body>
     <div id="sidebar">
-        <h2>🗺 맵 에디터</h2>
+        <h2>맵 에디터</h2>
 
         <h3>스테이지</h3>
         <select id="stage-select"></select>
+        <div id="letter-info"></div>
 
         <h3>맵 크기</h3>
         <div class="row"><label>너비:</label><input type="number" id="map-width" value="4000" step="100"></div>
@@ -65,7 +67,7 @@
         <button class="tool-btn" data-tool="shooter" onclick="selectTool('shooter')"><span class="preview" style="background:#8844ff"></span>사격적</button>
         <button class="tool-btn" data-tool="falling" onclick="selectTool('falling')"><span class="preview" style="background:#888"></span>낙석</button>
         <button class="tool-btn" data-tool="spike" onclick="selectTool('spike')"><span class="preview" style="background:#aa4444"></span>가시</button>
-        <button class="tool-btn" data-tool="select" onclick="selectTool('select')">🔍 선택</button>
+        <button class="tool-btn" data-tool="select" onclick="selectTool('select')">선택</button>
 
         <h3>선택된 속성</h3>
         <div id="props"><span style="color:#555">객체를 클릭하세요</span></div>
@@ -74,10 +76,10 @@
         <div id="placed-list"></div>
 
         <h3 style="margin-top: 10px;">액션</h3>
-        <button class="play-btn" onclick="testPlay()">▶ 테스트 플레이</button>
-        <button class="big-btn" onclick="exportData()" style="margin-top:4px">📋 데이터 내보내기</button>
-        <button onclick="importData()" style="margin-top:4px">📥 데이터 불러오기</button>
-        <button class="danger-btn" onclick="clearAll()" style="margin-top:4px">🗑 전체 삭제</button>
+        <button class="play-btn" onclick="testPlay()">테스트 플레이</button>
+        <button class="big-btn" onclick="exportData()" style="margin-top:4px">데이터 내보내기</button>
+        <button onclick="importData()" style="margin-top:4px">데이터 불러오기</button>
+        <button class="danger-btn" onclick="clearAll()" style="margin-top:4px">전체 삭제</button>
     </div>
 
     <div id="canvas-wrap">
@@ -92,15 +94,17 @@
 
     <!-- 테스트 플레이 오버레이 -->
     <div id="game-overlay">
-        <button class="close-btn" onclick="stopTestPlay()">✕ 에디터로</button>
+        <button class="close-btn" onclick="stopTestPlay()">에디터로</button>
         <div id="game-container-test"></div>
     </div>
 
     <!-- Phaser (테스트용) -->
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script src="js/data/HangulMaps.js"></script>
     <script src="js/data/StageData.js"></script>
     <script src="js/data/StageProgress.js"></script>
     <script src="js/data/CutsceneData.js"></script>
+    <script src="js/entities/PlayerController.js"></script>
     <script src="js/scenes/GameScene.js"></script>
 
     <script>
@@ -110,6 +114,9 @@
     let mapW = 4000, mapH = 1200;
     let spawnX = 100, spawnY = 1120;
     let objects = []; // { type, x, y, w, h, ... }
+    let letterPlatforms = []; // 글자 플랫폼 (읽기 전용)
+    let currentLetterChar = null;
+    let currentStageId = null;
     let selectedIdx = -1;
     let currentTool = 'select';
     let scrollX = 0, scrollY = 0;
@@ -123,11 +130,11 @@
 
     // 색상
     const COLORS = {
-        platform: '#3a506b', wall: '#2d4059', item: '#ffd700',
+        platform: '#5C4833', wall: '#2d4059', item: '#ffd700',
         moving_h: '#00aaff', moving_v: '#00ffaa',
         walker: '#ff4444', patrol: '#ff6644', jumper: '#ff8800',
         shooter: '#8844ff', falling: '#888888', spike: '#aa4444',
-        spawn: '#4fc3f7',
+        spawn: '#4fc3f7', letter: '#C8A96E',
     };
 
     const LABELS = {
@@ -156,12 +163,15 @@
     // 스테이지 로드
     // ==========================================
     const stageSelect = document.getElementById('stage-select');
-    Object.keys(STAGE_DATA).forEach(id => {
-        const sd = STAGE_DATA[id];
-        const opt = document.createElement('option');
-        opt.value = id;
-        opt.textContent = `${sd.era} - ${sd.name} (${id})`;
-        stageSelect.appendChild(opt);
+    ['normal', 'red', 'true_red'].forEach(route => {
+        STAGE_ORDER[route].forEach(id => {
+            const sd = STAGE_DATA[id];
+            const char = HANGUL_STAGE_CHARS[id] || '';
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = `[${char}] ${sd.era} - ${sd.name} (${id})`;
+            stageSelect.appendChild(opt);
+        });
     });
 
     stageSelect.addEventListener('change', () => loadStage(stageSelect.value));
@@ -170,11 +180,14 @@
         const sd = STAGE_DATA[stageId];
         if (!sd) return;
 
+        currentStageId = stageId;
         mapW = sd.map.width;
         mapH = sd.map.height;
         spawnX = sd.spawn.x;
         spawnY = sd.spawn.y;
         objects = [];
+        letterPlatforms = [];
+        currentLetterChar = sd.letterChar || null;
         selectedIdx = -1;
 
         document.getElementById('map-width').value = mapW;
@@ -182,7 +195,21 @@
         document.getElementById('spawn-x').value = spawnX;
         document.getElementById('spawn-y').value = spawnY;
 
-        // 플랫폼
+        // 글자 플랫폼 생성 (읽기 전용, 편집 불가)
+        if (sd.letterChar && typeof generateLetterPlatforms === 'function') {
+            letterPlatforms = generateLetterPlatforms(sd.letterChar, sd.map.width);
+        }
+
+        // 글자 정보 표시
+        const letterInfo = document.getElementById('letter-info');
+        if (sd.letterChar) {
+            const charInfo = HANGUL_STAGE_CHARS[stageId] || '';
+            letterInfo.innerHTML = `<div class="letter-info">글자: <strong style="font-size:18px;color:#C8A96E">${sd.letterChar}</strong> | 글자 플랫폼: ${letterPlatforms.length}개 (자동 생성, 편집 불가)</div>`;
+        } else {
+            letterInfo.innerHTML = '<div class="letter-info" style="color:#555">글자 미적용 스테이지</div>';
+        }
+
+        // 게임플레이 플랫폼
         sd.platforms.forEach(p => objects.push({ type: 'platform', x: p.x, y: p.y, w: p.w, h: p.h }));
         // 벽
         if (sd.walls) sd.walls.forEach(w => objects.push({ type: 'wall', x: w.x, y: w.y, w: w.w, h: w.h }));
@@ -249,10 +276,40 @@
         for (let x = 0; x < mapW; x += 100) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, mapH); ctx.stroke(); }
         for (let y = 0; y < mapH; y += 100) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(mapW, y); ctx.stroke(); }
 
+        // 한글 맵 그리드 (글자 있는 경우)
+        if (currentLetterChar) {
+            const cellSize = mapW / 15;
+            ctx.strokeStyle = 'rgba(200,169,110,0.08)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 15; i++) {
+                ctx.beginPath(); ctx.moveTo(i * cellSize, 0); ctx.lineTo(i * cellSize, mapH); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i * cellSize); ctx.lineTo(mapW, i * cellSize); ctx.stroke();
+            }
+        }
+
         // 맵 경계
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 2;
         ctx.strokeRect(0, 0, mapW, mapH);
+
+        // 글자 플랫폼 (읽기 전용, 먼저 그려서 뒤에 깔림)
+        letterPlatforms.forEach(p => {
+            ctx.fillStyle = COLORS.letter;
+            ctx.globalAlpha = 0.7;
+            ctx.fillRect(p.x, p.y, p.w, Math.max(p.h, 2));
+            ctx.globalAlpha = 1;
+        });
+
+        // 글자 라벨 (좌상단)
+        if (currentLetterChar) {
+            ctx.fillStyle = 'rgba(200,169,110,0.15)';
+            ctx.font = `${mapW * 0.8}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(currentLetterChar, mapW / 2, mapH / 2);
+            ctx.textAlign = 'start';
+            ctx.textBaseline = 'alphabetic';
+        }
 
         // 스폰
         ctx.fillStyle = COLORS.spawn;
@@ -278,7 +335,6 @@
                 case 'moving_v':
                     ctx.fillStyle = COLORS[obj.type];
                     ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
-                    // 이동 경로 표시
                     ctx.strokeStyle = COLORS[obj.type];
                     ctx.globalAlpha = 0.3;
                     ctx.setLineDash([4, 4]);
@@ -313,7 +369,6 @@
                     } else {
                         ctx.fillRect(obj.x - 14, obj.y - 14, 28, 28);
                     }
-                    // 왕복 범위
                     if (obj.type === 'patrol' && obj.minX != null) {
                         ctx.strokeStyle = COLORS.patrol; ctx.globalAlpha = 0.3; ctx.setLineDash([4, 4]);
                         ctx.beginPath(); ctx.moveTo(obj.minX, obj.y); ctx.lineTo(obj.maxX, obj.y); ctx.stroke();
@@ -364,7 +419,7 @@
     });
 
     canvas.addEventListener('mousedown', (e) => {
-        if (e.button === 2) return; // 우클릭은 contextmenu에서
+        if (e.button === 2) return;
         const rect = canvas.getBoundingClientRect();
         const pos = screenToMap(e.clientX - rect.left, e.clientY - rect.top);
 
@@ -417,10 +472,8 @@
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
         if (e.shiftKey) {
-            // 줌
-            scale = Math.max(0.2, Math.min(2, scale - e.deltaY * 0.001));
+            scale = Math.max(0.1, Math.min(2, scale - e.deltaY * 0.001));
         } else {
-            // 스크롤
             scrollX += e.deltaX * 2 / scale;
             scrollY += e.deltaY * 2 / scale;
             scrollX = Math.max(0, Math.min(scrollX, mapW - canvas.width / scale));
@@ -485,7 +538,7 @@
             const div = document.createElement('div');
             div.className = 'placed-item';
             const lbl = LABELS[obj.type] || obj.type;
-            div.innerHTML = `<span>${lbl} (${Math.round(obj.x)},${Math.round(obj.y)})</span><span class="del" onclick="removeObj(${i})">✕</span>`;
+            div.innerHTML = `<span>${lbl} (${Math.round(obj.x)},${Math.round(obj.y)})</span><span class="del" onclick="removeObj(${i})">x</span>`;
             div.addEventListener('click', (ev) => {
                 if (ev.target.classList.contains('del')) return;
                 selectedIdx = i;
@@ -506,7 +559,7 @@
     }
 
     function clearAll() {
-        if (confirm('전체 삭제?')) { objects = []; selectedIdx = -1; updateProps(); updateList(); draw(); }
+        if (confirm('전체 삭제? (글자 플랫폼은 유지됩니다)')) { objects = []; selectedIdx = -1; updateProps(); updateList(); draw(); }
     }
 
     function applyMapSize() {
@@ -538,7 +591,10 @@
             return `            { ${parts.join(', ')} },`;
         });
 
-        const output = `        map: { width: ${mapW}, height: ${mapH} },
+        const sd = STAGE_DATA[currentStageId];
+        const letterLine = sd && sd.letterChar ? `\n        letterChar: '${sd.letterChar}',` : '';
+
+        const output = `        map: { width: ${mapW}, height: ${mapH} },${letterLine}
         spawn: { x: ${spawnX}, y: ${spawnY} },
         platforms: [
 ${platforms.join('\n')}
@@ -556,8 +612,11 @@ ${items.join('\n')}
 ${enemies.join('\n')}
         ],`;
 
-        const ta = prompt('데이터 (복사하세요):', output);
-        if (!ta) { navigator.clipboard.writeText(output); alert('클립보드에 복사됨!'); }
+        navigator.clipboard.writeText(output).then(() => {
+            alert('클립보드에 복사됨!');
+        }).catch(() => {
+            prompt('데이터 (복사하세요):', output);
+        });
     }
 
     function importData() {
@@ -580,10 +639,18 @@ ${enemies.join('\n')}
         spawnX = parseInt(document.getElementById('spawn-x').value) || 100;
         spawnY = parseInt(document.getElementById('spawn-y').value) || mapH - 80;
 
-        // 현재 에디터 데이터로 임시 스테이지 생성
+        const sd = STAGE_DATA[currentStageId];
+
         const testStage = {
             id: 'test', name: '테스트', era: '테스트', route: 'normal', stageNumber: 0,
-            map: { width: mapW, height: mapH, backgroundColor: '#16213e', platformColor: 0x3a506b, accentColor: 0x2d4059 },
+            letterChar: currentLetterChar,
+            map: {
+                width: mapW, height: mapH,
+                backgroundColor: (sd && sd.map.backgroundColor) || '#16213e',
+                platformColor: (sd && sd.map.platformColor) || 0x3a506b,
+                accentColor: (sd && sd.map.accentColor) || 0x2d4059,
+                letterColor: (sd && sd.map.letterColor) || 0xC8A96E,
+            },
             spawn: { x: spawnX, y: spawnY },
             timeLimit: 180,
             platforms: objects.filter(o => o.type === 'platform').map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
@@ -608,7 +675,6 @@ ${enemies.join('\n')}
             }),
         };
 
-        // STAGE_DATA에 임시 등록
         STAGE_DATA['test'] = testStage;
 
         document.getElementById('game-overlay').style.display = 'block';
@@ -624,7 +690,6 @@ ${enemies.join('\n')}
             scene: [GameScene],
         });
 
-        // GameScene에 testStage를 전달
         testGame.events.once('ready', () => {
             testGame.scene.start('GameScene', { stageId: 'test' });
         });
@@ -636,7 +701,6 @@ ${enemies.join('\n')}
             testGame = null;
         }
         document.getElementById('game-overlay').style.display = 'none';
-        // 임시 데이터 제거
         delete STAGE_DATA['test'];
     }
     </script>
