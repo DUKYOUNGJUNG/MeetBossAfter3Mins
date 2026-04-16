@@ -1,222 +1,312 @@
-// 튜토리얼 맵 설정
-const TUTORIAL_WIDTH = 3200;
-const TUTORIAL_HEIGHT = 600;
+// 튜토리얼: 4층 건물 (포탈로 층 이동, 각 층에서 조작 학습)
+// 1층: 이동 / 2층: 점프 / 3층: 대시 / 4층: 점프+대시 → 옥상 컷씬
+
+const FLOOR_WIDTH = 800;
+const FLOOR_HEIGHT = 600;
+
+// 층별 설정
+const FLOORS = [
+    {
+        // 1층: 이동
+        dialogue: [
+            { text: '"..."', duration: 1500, color: '#ff4444', size: '28px' },
+            { text: '"옥상으로…"', duration: 2000, color: '#ff4444', size: '24px' },
+        ],
+        guide: '◀ ▶  좌우로 이동',
+        unlock: { canMove: true, canJump: false, canDash: false },
+        bgColor: '#0a0a12',
+        buildFloor(scene, platforms) {
+            const add = (x, y, w, h, c) => PlayerController.addPlatform(scene, platforms, x, y, w, h, c, 'tut_f1');
+            // 바닥
+            add(0, FLOOR_HEIGHT - 32, FLOOR_WIDTH, 32, 0x2d2d3a);
+            // 벽
+            add(0, 0, 20, FLOOR_HEIGHT, 0x1a1a2e);
+            add(FLOOR_WIDTH - 20, 0, 20, FLOOR_HEIGHT, 0x1a1a2e);
+        },
+        spawnX: 80,
+        spawnY: FLOOR_HEIGHT - 80,
+        portalX: FLOOR_WIDTH - 80,
+        portalY: FLOOR_HEIGHT - 60,
+    },
+    {
+        // 2층: 점프
+        dialogue: [
+            { text: '"옥상으로…"', duration: 2000, color: '#ff4444', size: '24px' },
+        ],
+        guide: '▲  점프! 플랫폼을 올라가세요',
+        unlock: { canMove: true, canJump: true, canDash: false },
+        bgColor: '#0c0c14',
+        buildFloor(scene, platforms) {
+            const add = (x, y, w, h, c) => PlayerController.addPlatform(scene, platforms, x, y, w, h, c, 'tut_f2');
+            // 바닥
+            add(0, FLOOR_HEIGHT - 32, 300, 32, 0x2d2d3a);
+            // 계단식 플랫폼
+            add(200, FLOOR_HEIGHT - 130, 150, 20, 0x3a3a50);
+            add(400, FLOOR_HEIGHT - 220, 150, 20, 0x3a3a50);
+            add(550, FLOOR_HEIGHT - 320, 150, 20, 0x3a3a50);
+            // 포탈 플랫폼
+            add(600, FLOOR_HEIGHT - 420, 180, 20, 0x3a3a50);
+            // 벽
+            add(0, 0, 20, FLOOR_HEIGHT, 0x1a1a2e);
+            add(FLOOR_WIDTH - 20, 0, 20, FLOOR_HEIGHT, 0x1a1a2e);
+        },
+        spawnX: 80,
+        spawnY: FLOOR_HEIGHT - 80,
+        portalX: 700,
+        portalY: FLOOR_HEIGHT - 450,
+    },
+    {
+        // 3층: 대시
+        dialogue: [
+            { text: '"그래 그래… 이쪽으로…"', duration: 2000, color: '#ff4444', size: '24px' },
+        ],
+        guide: '💨  대시! 먼 거리를 순식간에',
+        unlock: { canMove: true, canJump: false, canDash: true },
+        bgColor: '#0e0e16',
+        buildFloor(scene, platforms) {
+            const add = (x, y, w, h, c) => PlayerController.addPlatform(scene, platforms, x, y, w, h, c, 'tut_f3');
+            // 바닥 (갭 있음 — 대시로 건너야 함)
+            add(0, FLOOR_HEIGHT - 32, 350, 32, 0x2d2d3a);
+            add(430, FLOOR_HEIGHT - 32, 370, 32, 0x2d2d3a);
+            // 벽
+            add(0, 0, 20, FLOOR_HEIGHT, 0x1a1a2e);
+            add(FLOOR_WIDTH - 20, 0, 20, FLOOR_HEIGHT, 0x1a1a2e);
+        },
+        spawnX: 80,
+        spawnY: FLOOR_HEIGHT - 80,
+        portalX: FLOOR_WIDTH - 80,
+        portalY: FLOOR_HEIGHT - 60,
+    },
+    {
+        // 4층: 점프 + 대시
+        dialogue: [
+            { text: '"곧이야… 이쪽으로…"', duration: 2000, color: '#ff4444', size: '24px' },
+        ],
+        guide: '▲ + 💨  점프 후 공중에서 대시!',
+        unlock: { canMove: true, canJump: true, canDash: true },
+        bgColor: '#101018',
+        buildFloor(scene, platforms) {
+            const add = (x, y, w, h, c) => PlayerController.addPlatform(scene, platforms, x, y, w, h, c, 'tut_f4');
+            // 바닥
+            add(0, FLOOR_HEIGHT - 32, 300, 32, 0x2d2d3a);
+            // 높은 플랫폼 (점프+대시 필요)
+            add(550, FLOOR_HEIGHT - 150, 200, 20, 0x3a3a50);
+            // 벽
+            add(0, 0, 20, FLOOR_HEIGHT, 0x1a1a2e);
+            add(FLOOR_WIDTH - 20, 0, 20, FLOOR_HEIGHT, 0x1a1a2e);
+        },
+        spawnX: 80,
+        spawnY: FLOOR_HEIGHT - 80,
+        portalX: 660,
+        portalY: FLOOR_HEIGHT - 180,
+    },
+];
 
 class TutorialScene extends Phaser.Scene {
     constructor() {
         super({ key: 'TutorialScene' });
     }
 
+    preload() {
+        PlayerController.preloadSprites(this);
+    }
+
     create() {
-        this.cameras.main.setBackgroundColor('#16213e');
+        PlayerController.createAnimations(this);
+        this.currentFloor = 0;
+        this.isTransitioning = false;
         this.input.addPointer(3);
 
+        this.loadFloor(0);
+    }
+
+    loadFloor(floorIndex) {
+        const floor = FLOORS[floorIndex];
+        this.currentFloor = floorIndex;
+
+        // 기존 오브젝트 정리
+        this.children.removeAll(true);
+        if (this.physics.world) {
+            this.physics.world.colliders.destroy();
+        }
+
+        this.cameras.main.setBackgroundColor(floor.bgColor);
+        this.cameras.main.setBounds(0, 0, FLOOR_WIDTH, FLOOR_HEIGHT);
+        this.cameras.main.setZoom(1);
+        this.cameras.main.setScroll(0, 0);
+
+        // 플랫폼
         this.platforms = this.physics.add.staticGroup();
-        this.createTutorialMap();
+        floor.buildFloor(this, this.platforms);
 
         // 플레이어 컨트롤러
         this.pc = new PlayerController(this, {
-            canMove: true,
-            canJump: false,
-            canDash: false,
+            ...floor.unlock,
             afterImage: true,
         });
         this.pc.createPlayerTexture('tut_player');
 
-        // 플레이어 (구역1 시작)
-        this.player = this.physics.add.sprite(80, TUTORIAL_HEIGHT - 80, 'tut_player');
+        // 플레이어
+        const playerKey = this.textures.exists('idle_east_0') ? 'idle_east_0' : 'tut_player';
+        this.player = this.physics.add.sprite(floor.spawnX, floor.spawnY, playerKey);
+        this.player.setDisplaySize(PLAYER_WIDTH, PLAYER_HEIGHT);
         this.player.setBounce(0);
         this.player.setMaxVelocity(MOVE_SPEED, 900);
-
-        // 현재 구역 (1~4)
-        this.currentZone = 1;
+        this.player.setCollideWorldBounds(true);
 
         // 충돌
         this.physics.add.collider(this.player, this.platforms);
 
-        // 구역 트리거
-        this.triggers = this.physics.add.staticGroup();
-        this.createZoneTriggers();
-        this.physics.add.overlap(this.player, this.triggers, this.onTrigger, null, this);
+        // 월드 바운드
+        this.physics.world.setBounds(0, 0, FLOOR_WIDTH, FLOOR_HEIGHT + 200);
 
-        // 카메라
-        this.cameras.main.setBounds(0, 0, TUTORIAL_WIDTH, TUTORIAL_HEIGHT);
-        this.physics.world.setBounds(0, 0, TUTORIAL_WIDTH, TUTORIAL_HEIGHT + 200);
-        this.player.setCollideWorldBounds(false);
-        this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-        this.cameras.main.setZoom(1.3);
-
-        // UI 카메라
-        this.uiCamera = this.cameras.add(0, 0, 800, 600);
-        this.uiCamera.setScroll(0, 0);
-        this.uiLayer = this.add.container(0, 0);
-        this.cameras.main.ignore(this.uiLayer);
-
-        // 구역 안내 텍스트
-        this.guideText = this.add.text(400, 80, '', {
-            fontSize: '20px', fontFamily: 'monospace',
-            color: '#ffffff', stroke: '#000000', strokeThickness: 3,
-            align: 'center'
-        }).setOrigin(0.5);
-        this.uiLayer.add(this.guideText);
-        this.cameras.main.ignore(this.guideText);
+        // 포탈 생성
+        this.createPortal(floor.portalX, floor.portalY);
 
         // 키보드 + 터치
         this.pc.setupKeyboard();
-        const touchElements = this.pc.createTouchControls(800, 600);
-        this.uiLayer.add(touchElements);
-        touchElements.forEach(el => this.cameras.main.ignore(el));
+        const touchElements = this.pc.createTouchControls(FLOOR_WIDTH, FLOOR_HEIGHT);
 
-        // UI 카메라에서 게임 오브젝트 무시
-        this.platforms.getChildren().forEach(p => this.uiCamera.ignore(p));
-        this.triggers.getChildren().forEach(t => this.uiCamera.ignore(t));
-        this.uiCamera.ignore(this.player);
+        // 층 표시
+        const floorLabel = this.add.text(FLOOR_WIDTH / 2, 20, `${floorIndex + 1}F`, {
+            fontSize: '16px', fontFamily: 'monospace', color: '#333333',
+            stroke: '#000000', strokeThickness: 2
+        }).setOrigin(0.5);
 
-        // 구역별 표지판
-        this.createZoneSigns();
+        // 페이드인
+        this.cameras.main.fadeIn(400);
 
-        // 구역별 리스폰 위치
-        this.respawnPoints = {
-            1: { x: 80, y: TUTORIAL_HEIGHT - 80 },
-            2: { x: 850, y: TUTORIAL_HEIGHT - 80 },
-            3: { x: 1650, y: TUTORIAL_HEIGHT - 80 },
-            4: { x: 2450, y: TUTORIAL_HEIGHT - 80 },
+        // 대사 시퀀스 시작 (입력 잠금)
+        this.isTransitioning = true;
+        this.player.body.moves = false;
+        this.showDialogueSequence(floor.dialogue, () => {
+            // 대사 끝 → 가이드 표시 + 입력 활성화
+            this.showGuide(floor.guide);
+            this.player.body.moves = true;
+            this.isTransitioning = false;
+        });
+    }
+
+    showDialogueSequence(dialogues, onComplete) {
+        let index = 0;
+
+        const showOne = () => {
+            if (index >= dialogues.length) {
+                onComplete();
+                return;
+            }
+
+            const d = dialogues[index];
+            const textObj = this.add.text(FLOOR_WIDTH / 2, FLOOR_HEIGHT / 2 - 40, d.text, {
+                fontSize: d.size || '24px', fontFamily: 'monospace',
+                color: d.color || '#ff4444',
+                stroke: '#000000', strokeThickness: 3,
+                align: 'center'
+            }).setOrigin(0.5).setAlpha(0).setDepth(10);
+
+            this.tweens.add({
+                targets: textObj, alpha: 1, duration: 400,
+                onComplete: () => {
+                    this.time.delayedCall(d.duration || 2000, () => {
+                        this.tweens.add({
+                            targets: textObj, alpha: 0, duration: 400,
+                            onComplete: () => {
+                                textObj.destroy();
+                                index++;
+                                showOne();
+                            }
+                        });
+                    });
+                }
+            });
         };
 
-        // 구역1 시작
-        this.showZoneGuide(1);
+        // 시작 전 잠깐 대기
+        this.time.delayedCall(800, showOne);
     }
 
-    createTutorialMap() {
-        const add = (x, y, w, h, c) => PlayerController.addPlatform(this, this.platforms, x, y, w, h, c, 'tut_plat');
+    showGuide(text) {
+        const guide = this.add.text(FLOOR_WIDTH / 2, 60, text, {
+            fontSize: '20px', fontFamily: 'monospace',
+            color: '#ffffff', stroke: '#000000', strokeThickness: 3,
+            align: 'center'
+        }).setOrigin(0.5).setAlpha(0).setDepth(10);
 
-        // 구역 1: 좌우 이동 (0~800)
-        add(0, TUTORIAL_HEIGHT - 32, 800, 32, 0x2d4059);
+        this.tweens.add({
+            targets: guide, alpha: 1, duration: 500,
+        });
 
-        // 구역 2: 점프 (800~1600)
-        add(800, TUTORIAL_HEIGHT - 32, 200, 32, 0x2d4059);
-        add(950, TUTORIAL_HEIGHT - 120, 120, 20, 0x3a506b);
-        add(1120, TUTORIAL_HEIGHT - 200, 120, 20, 0x3a506b);
-        add(1300, TUTORIAL_HEIGHT - 280, 120, 20, 0x3a506b);
-        add(1450, TUTORIAL_HEIGHT - 180, 120, 20, 0x3a506b);
-        add(1450, TUTORIAL_HEIGHT - 32, 150, 32, 0x2d4059);
-
-        // 구역 3: 대시 (1600~2400) — 갭은 캐릭터 크기 수준 (~40px)
-        add(1600, TUTORIAL_HEIGHT - 32, 200, 32, 0x2d4059);
-        add(1840, TUTORIAL_HEIGHT - 32, 560, 32, 0x2d4059);
-
-        // 구역 4: 점프 + 공중 대시 (2400~3200)
-        add(2400, TUTORIAL_HEIGHT - 32, 200, 32, 0x2d4059);
-        add(2900, TUTORIAL_HEIGHT - 180, 120, 20, 0x3a506b);
-        add(2900, TUTORIAL_HEIGHT - 32, 300, 32, 0x2d4059);
+        // 5초 후 서서히 사라짐
+        this.time.delayedCall(5000, () => {
+            this.tweens.add({
+                targets: guide, alpha: 0, duration: 1000,
+                onComplete: () => guide.destroy()
+            });
+        });
     }
 
-    createZoneTriggers() {
-        const triggerData = [
-            { x: 800, zone: 2 },
-            { x: 1600, zone: 3 },
-            { x: 2400, zone: 4 },
-            { x: 2950, zone: 5 },
-        ];
-
-        if (!this.textures.exists('tut_trigger')) {
+    createPortal(x, y) {
+        // 포탈 텍스처
+        if (!this.textures.exists('tut_portal')) {
             const g = this.add.graphics();
-            g.fillStyle(0xffffff, 0);
-            g.fillRect(0, 0, 30, TUTORIAL_HEIGHT);
-            g.generateTexture('tut_trigger', 30, TUTORIAL_HEIGHT);
+            g.fillStyle(0x4444ff, 0.6);
+            g.fillEllipse(20, 30, 40, 60);
+            g.fillStyle(0x8888ff, 0.4);
+            g.fillEllipse(20, 30, 28, 44);
+            g.fillStyle(0xccccff, 0.3);
+            g.fillEllipse(20, 30, 14, 24);
+            g.generateTexture('tut_portal', 40, 60);
             g.destroy();
         }
 
-        triggerData.forEach(data => {
-            const trigger = this.triggers.create(data.x, TUTORIAL_HEIGHT / 2, 'tut_trigger');
-            trigger.setDisplaySize(30, TUTORIAL_HEIGHT);
-            trigger.setAlpha(0);
-            trigger.refreshBody();
-            trigger.setData('zone', data.zone);
-        });
-    }
+        this.portal = this.physics.add.staticSprite(x, y, 'tut_portal');
+        this.portal.setDisplaySize(40, 60);
+        this.portal.refreshBody();
 
-    createZoneSigns() {
-        const signs = [
-            { x: 80, y: TUTORIAL_HEIGHT - 60, text: '\u2190 \u2192\n\uC774\uB3D9' },
-            { x: 830, y: TUTORIAL_HEIGHT - 60, text: '\u25B2\n\uC810\uD504' },
-            { x: 1630, y: TUTORIAL_HEIGHT - 60, text: '\uD83D\uDCA8\n\uB300\uC2DC' },
-            { x: 2430, y: TUTORIAL_HEIGHT - 60, text: '\u25B2 + \uD83D\uDCA8\n\uC810\uD504 + \uACF5\uC911 \uB300\uC2DC' },
-        ];
-
-        signs.forEach(s => {
-            const sign = this.add.text(s.x, s.y, s.text, {
-                fontSize: '14px', fontFamily: 'monospace',
-                color: '#ffcc00', stroke: '#000000', strokeThickness: 2,
-                align: 'center'
-            }).setOrigin(0, 1);
-            this.uiCamera.ignore(sign);
-        });
-
-        const goalSign = this.add.text(2960, TUTORIAL_HEIGHT - 220, '\uD83D\uDEAA', {
-            fontSize: '40px'
-        }).setOrigin(0.5);
-        this.uiCamera.ignore(goalSign);
+        // 포탈 펄스 효과
         this.tweens.add({
-            targets: goalSign, alpha: 0.4,
-            duration: 800, yoyo: true, repeat: -1
+            targets: this.portal,
+            alpha: 0.5, scaleX: 0.9, scaleY: 1.05,
+            duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
         });
+
+        // 포탈 진입 감지
+        this.physics.add.overlap(this.player, this.portal, this.enterPortal, null, this);
     }
 
-    onTrigger(player, trigger) {
-        const zone = trigger.getData('zone');
+    enterPortal() {
+        if (this.isTransitioning) return;
+        this.isTransitioning = true;
 
-        if (zone === 5) {
-            const progress = StageProgress.load();
-            progress.tutorialDone = true;
-            StageProgress.save(progress);
-            this.scene.start('CutsceneScene', CUTSCENE_DATA.rooftop);
-            return;
-        }
+        // 포탈 진입 이펙트
+        this.cameras.main.flash(300, 100, 100, 255);
 
-        if (zone > this.currentZone) {
-            this.currentZone = zone;
-            this.showZoneGuide(zone);
-        }
-    }
+        this.cameras.main.fadeOut(400, 0, 0, 0);
+        this.time.delayedCall(400, () => {
+            const nextFloor = this.currentFloor + 1;
 
-    showZoneGuide(zone) {
-        switch (zone) {
-            case 1:
-                this.pc.options.canMove = true;
-                this.pc.options.canJump = false;
-                this.pc.options.canDash = false;
-                this.guideText.setText('\u25C0 \u25B6  \uC88C\uC6B0\uB85C \uC774\uB3D9\uD574\uBCF4\uC138\uC694');
-                break;
-            case 2:
-                this.pc.options.canJump = true;
-                this.pc.options.canDash = false;
-                this.guideText.setText('\u25B2  \uC810\uD504! \uD50C\uB7AB\uD3FC\uC744 \uC62C\uB77C\uAC00\uC138\uC694');
-                break;
-            case 3:
-                this.pc.options.canDash = true;
-                this.guideText.setText('\uD83D\uDCA8  \uB300\uC2DC! \uBA3C \uAC70\uB9AC\uB97C \uC21C\uC2DD\uAC04\uC5D0');
-                break;
-            case 4:
-                this.guideText.setText('\u25B2 + \uD83D\uDCA8  \uC810\uD504 \uD6C4 \uACF5\uC911\uC5D0\uC11C \uB300\uC2DC!');
-                break;
-        }
-
-        this.guideText.setAlpha(0);
-        this.tweens.add({
-            targets: this.guideText, alpha: 1,
-            duration: 500, ease: 'Power2'
+            if (nextFloor >= FLOORS.length) {
+                // 4층 클리어 → 튜토리얼 완료 → 옥상 컷씬
+                const progress = StageProgress.load();
+                progress.tutorialDone = true;
+                StageProgress.save(progress);
+                this.scene.start('CutsceneScene', CUTSCENE_DATA.rooftop);
+            } else {
+                this.loadFloor(nextFloor);
+            }
         });
     }
 
     update(time, delta) {
+        if (this.isTransitioning) return;
+
         // 플레이어 물리
         this.pc.updatePhysics(time, delta);
 
         // 낙사 체크
-        if (this.player.y > TUTORIAL_HEIGHT + 50) {
-            const spawn = this.respawnPoints[this.currentZone];
-            this.player.setPosition(spawn.x, spawn.y);
+        if (this.player.y > FLOOR_HEIGHT + 50) {
+            const floor = FLOORS[this.currentFloor];
+            this.player.setPosition(floor.spawnX, floor.spawnY);
             this.player.setVelocity(0, 0);
             this.pc.resetDash();
         }

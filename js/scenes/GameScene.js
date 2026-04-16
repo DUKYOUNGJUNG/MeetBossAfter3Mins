@@ -9,7 +9,12 @@ class GameScene extends Phaser.Scene {
         this.testMode = data && data.testMode ? true : false;
     }
 
+    preload() {
+        PlayerController.preloadSprites(this);
+    }
+
     create() {
+        PlayerController.createAnimations(this);
         const sd = this.stageData;
         const mapW = sd.map.width;
         const mapH = sd.map.height;
@@ -25,8 +30,10 @@ class GameScene extends Phaser.Scene {
         this.pc = new PlayerController(this, { afterImage: true });
         this.pc.createPlayerTexture();
 
-        // 플레이어
-        this.player = this.physics.add.sprite(sd.spawn.x, sd.spawn.y, 'player');
+        // 플레이어 (스프라이트 로드 시 첫 프레임, 아니면 폴백 텍스처)
+        const playerKey = this.textures.exists('idle_east_0') ? 'idle_east_0' : 'player';
+        this.player = this.physics.add.sprite(sd.spawn.x, sd.spawn.y, playerKey);
+        this.player.setDisplaySize(PLAYER_WIDTH, PLAYER_HEIGHT);
         this.player.setBounce(0);
         this.player.setMaxVelocity(MOVE_SPEED, 900);
 

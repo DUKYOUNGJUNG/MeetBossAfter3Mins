@@ -8,7 +8,12 @@ class BossScene extends Phaser.Scene {
         this.stageData = STAGE_DATA[this.stageId];
     }
 
+    preload() {
+        PlayerController.preloadSprites(this);
+    }
+
     create() {
+        PlayerController.createAnimations(this);
         this.cameras.main.setBackgroundColor('#0a0a0a');
         this.input.addPointer(3);
         this.isDead = false;
@@ -30,7 +35,9 @@ class BossScene extends Phaser.Scene {
         this.pc = new PlayerController(this, { afterImage: false });
         this.pc.createPlayerTexture();
 
-        this.player = this.physics.add.sprite(100, BOSS_H - 80, 'player');
+        const playerKey = this.textures.exists('idle_east_0') ? 'idle_east_0' : 'player';
+        this.player = this.physics.add.sprite(100, BOSS_H - 80, playerKey);
+        this.player.setDisplaySize(PLAYER_WIDTH, PLAYER_HEIGHT);
         this.player.setCollideWorldBounds(true);
         this.player.setBounce(0);
         this.player.setMaxVelocity(MOVE_SPEED, 900);

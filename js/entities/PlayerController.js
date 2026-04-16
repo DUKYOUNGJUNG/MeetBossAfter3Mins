@@ -26,6 +26,9 @@ const PLAYER_WIDTH = 32;
 const PLAYER_HEIGHT = 48;
 const PLAYER_COLOR = 0x4fc3f7;
 
+// 스프라이트 경로
+const SPRITE_BASE = 'assets/character/sprites/';
+
 class PlayerController {
     constructor(scene, options = {}) {
         this.scene = scene;
@@ -67,9 +70,92 @@ class PlayerController {
         // UI 참조 (createTouchControls에서 설정)
         this.dashCooldownBar = null;
         this.dashCooldownText = null;
+
+        // 애니메이션 상태
+        this.currentAnim = null;
+        this.spritesLoaded = false;
     }
 
-    // 플레이어 텍스처 생성 (이미 있으면 스킵)
+    // 스프라이트 프리로드 (씬의 preload()에서 호출)
+    static preloadSprites(scene) {
+        if (scene.textures.exists('idle_east_0')) return; // 이미 로드됨
+
+        // idle (breathing)
+        for (let i = 0; i < 4; i++) {
+            scene.load.image(`idle_east_${i}`, `${SPRITE_BASE}idle_anim_east_${i}.png`);
+            scene.load.image(`idle_west_${i}`, `${SPRITE_BASE}idle_anim_west_${i}.png`);
+        }
+        // walk
+        for (let i = 0; i < 6; i++) {
+            scene.load.image(`walk_east_${i}`, `${SPRITE_BASE}walk_east_${i}.png`);
+            scene.load.image(`walk_west_${i}`, `${SPRITE_BASE}walk_west_${i}.png`);
+        }
+        // run
+        for (let i = 0; i < 6; i++) {
+            scene.load.image(`run_east_${i}`, `${SPRITE_BASE}run_east_${i}.png`);
+            scene.load.image(`run_west_${i}`, `${SPRITE_BASE}run_west_${i}.png`);
+        }
+        // jump
+        for (let i = 0; i < 9; i++) {
+            scene.load.image(`jump_east_${i}`, `${SPRITE_BASE}jump_east_${i}.png`);
+            scene.load.image(`jump_west_${i}`, `${SPRITE_BASE}jump_west_${i}.png`);
+        }
+    }
+
+    // 애니메이션 등록 (씬의 create()에서 호출)
+    static createAnimations(scene) {
+        if (scene.anims.exists('idle_east')) return; // 이미 등록됨
+
+        // idle
+        scene.anims.create({
+            key: 'idle_east',
+            frames: [0, 1, 2, 3].map(i => ({ key: `idle_east_${i}` })),
+            frameRate: 4, repeat: -1
+        });
+        scene.anims.create({
+            key: 'idle_west',
+            frames: [0, 1, 2, 3].map(i => ({ key: `idle_west_${i}` })),
+            frameRate: 4, repeat: -1
+        });
+
+        // walk
+        scene.anims.create({
+            key: 'walk_east',
+            frames: [0, 1, 2, 3, 4, 5].map(i => ({ key: `walk_east_${i}` })),
+            frameRate: 10, repeat: -1
+        });
+        scene.anims.create({
+            key: 'walk_west',
+            frames: [0, 1, 2, 3, 4, 5].map(i => ({ key: `walk_west_${i}` })),
+            frameRate: 10, repeat: -1
+        });
+
+        // run
+        scene.anims.create({
+            key: 'run_east',
+            frames: [0, 1, 2, 3, 4, 5].map(i => ({ key: `run_east_${i}` })),
+            frameRate: 12, repeat: -1
+        });
+        scene.anims.create({
+            key: 'run_west',
+            frames: [0, 1, 2, 3, 4, 5].map(i => ({ key: `run_west_${i}` })),
+            frameRate: 12, repeat: -1
+        });
+
+        // jump
+        scene.anims.create({
+            key: 'jump_east',
+            frames: [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => ({ key: `jump_east_${i}` })),
+            frameRate: 12, repeat: 0
+        });
+        scene.anims.create({
+            key: 'jump_west',
+            frames: [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => ({ key: `jump_west_${i}` })),
+            frameRate: 12, repeat: 0
+        });
+    }
+
+    // 플레이어 텍스처 생성 (폴백용 — 스프라이트 로드 실패 시)
     createPlayerTexture(key = 'player', color = PLAYER_COLOR) {
         if (!this.scene.textures.exists(key)) {
             const g = this.scene.add.graphics();
@@ -77,6 +163,35 @@ class PlayerController {
             g.fillRect(0, 0, PLAYER_WIDTH, PLAYER_HEIGHT);
             g.generateTexture(key, PLAYER_WIDTH, PLAYER_HEIGHT);
             g.destroy();
+        }
+        // 스프라이트가 로드되었는지 확인
+        this.spritesLoaded = this.scene.textures.exists('idle_east_0');
+    }
+
+    // 애니메이션 업데이트 (updatePhysics 끝에서 호출)
+    updateAnimation() {
+        if (!this.spritesLoaded) return;
+
+        const player = this.scene.player;
+        const onGround = player.body.touching.down || player.body.blocked.down;
+        const vx = player.body.velocity.x;
+        const vy = player.body.velocity.y;
+        const dir = this.lastDirection > 0 ? 'east' : 'west';
+
+        let anim;
+        if (this.isDashing) {
+            anim = `run_${dir}`;
+        } else if (!onGround) {
+            anim = `jump_${dir}`;
+        } else if (Math.abs(vx) > 20) {
+            anim = `run_${dir}`;
+        } else {
+            anim = `idle_${dir}`;
+        }
+
+        if (this.currentAnim !== anim) {
+            this.currentAnim = anim;
+            player.play(anim, true);
         }
     }
 
@@ -169,9 +284,8 @@ class PlayerController {
 
         // 잔상 효과
         if (this.options.afterImage) {
-            const afterImage = scene.add.rectangle(
-                player.x, player.y, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR, 0.4
-            );
+            const afterImage = scene.add.sprite(player.x, player.y, player.texture.key)
+                .setAlpha(0.4).setDisplaySize(player.displayWidth, player.displayHeight);
             if (scene.uiCamera) scene.uiCamera.ignore(afterImage);
             scene.tweens.add({
                 targets: afterImage,
@@ -219,6 +333,7 @@ class PlayerController {
         if (this.isDashing) {
             this.prevJumpInput = this.cursors.up.isDown || this.keyK.isDown || this.touchJump;
             this.prevDashInput = this.touchDash;
+            this.updateAnimation();
             return;
         }
 
@@ -295,6 +410,9 @@ class PlayerController {
         this.prevJumpInput = jumpInput;
         this.prevDashInput = this.touchDash;
         this.wasOnGround = onGround;
+
+        // 애니메이션 업데이트
+        this.updateAnimation();
     }
 
     // 대시 상태 리셋 (피격/낙사 시 호출)
