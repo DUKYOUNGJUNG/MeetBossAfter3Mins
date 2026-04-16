@@ -124,7 +124,8 @@
     let scale = 0.5;
     let isDragging = false;
     let dragStart = null;
-    let dragObj = null;
+    let dragObj = null;       // 오브젝트 드래그 인덱스
+    let draggingSpawn = false; // 스폰 드래그 중
 
     const canvas = document.getElementById('editor-canvas');
     const ctx = canvas.getContext('2d');
@@ -293,9 +294,49 @@
         }
 
         // 맵 경계
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#ff4444';
+        ctx.lineWidth = 3;
         ctx.strokeRect(0, 0, mapW, mapH);
+
+        // 플레이 불가 영역 (맵 바깥) 빗금 표시
+        const margin = 500;
+        ctx.fillStyle = 'rgba(255,0,0,0.08)';
+        ctx.fillRect(-margin, -margin, mapW + margin * 2, margin);           // 위
+        ctx.fillRect(-margin, mapH, mapW + margin * 2, margin);              // 아래
+        ctx.fillRect(-margin, 0, margin, mapH);                               // 왼쪽
+        ctx.fillRect(mapW, 0, margin, mapH);                                  // 오른쪽
+
+        // 빗금 패턴
+        ctx.strokeStyle = 'rgba(255,0,0,0.15)';
+        ctx.lineWidth = 1;
+        const step = 40;
+        // 위쪽
+        for (let i = -margin; i < mapW + margin; i += step) {
+            ctx.beginPath(); ctx.moveTo(i, -margin); ctx.lineTo(i + margin, 0); ctx.stroke();
+        }
+        // 아래쪽
+        for (let i = -margin; i < mapW + margin; i += step) {
+            ctx.beginPath(); ctx.moveTo(i, mapH); ctx.lineTo(i + margin, mapH + margin); ctx.stroke();
+        }
+        // 왼쪽
+        for (let i = -margin; i < mapH; i += step) {
+            ctx.beginPath(); ctx.moveTo(-margin, i); ctx.lineTo(0, i + margin); ctx.stroke();
+        }
+        // 오른쪽
+        for (let i = -margin; i < mapH; i += step) {
+            ctx.beginPath(); ctx.moveTo(mapW, i); ctx.lineTo(mapW + margin, i + margin); ctx.stroke();
+        }
+
+        // 낙사 영역 (맵 아래 300px, 실제 physics bounds)
+        ctx.fillStyle = 'rgba(255,0,0,0.05)';
+        ctx.fillRect(0, mapH, mapW, 300);
+        ctx.strokeStyle = 'rgba(255,100,0,0.3)';
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath(); ctx.moveTo(0, mapH + 300); ctx.lineTo(mapW, mapH + 300); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255,100,0,0.5)';
+        ctx.font = '12px monospace';
+        ctx.fillText('낙사 감지선 (mapH + 300)', 10, mapH + 295);
 
         // 글자 라벨
         if (currentLetterChar) {
@@ -308,12 +349,18 @@
             ctx.textBaseline = 'alphabetic';
         }
 
-        // 스폰
-        ctx.fillStyle = COLORS.spawn;
+        // 스폰 (드래그 가능)
+        ctx.fillStyle = draggingSpawn ? '#00ff88' : COLORS.spawn;
         ctx.fillRect(spawnX - 16, spawnY - 24, 32, 48);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(spawnX - 16, spawnY - 24, 32, 48);
         ctx.fillStyle = '#fff';
-        ctx.font = '10px monospace';
-        ctx.fillText('SPAWN', spawnX - 18, spawnY - 28);
+        ctx.font = '11px monospace';
+        ctx.fillText('SPAWN', spawnX - 20, spawnY - 30);
+        ctx.font = '9px monospace';
+        ctx.fillStyle = '#aaa';
+        ctx.fillText(`(${spawnX},${spawnY})`, spawnX - 24, spawnY + 34);
 
         // 오브젝트 그리기
         objects.forEach((obj, idx) => {
@@ -381,7 +428,7 @@
             ctx.font = '9px monospace';
             ctx.globalAlpha = 0.6;
             const lbl = LABELS[obj.type] || obj.type;
-            if (obj.type === 'platform' || obj.type === 'wall' || obj.type === 'moving_h' || obj.type === 'moving_v') {
+            if (obj.type === 'letter' || obj.type === 'platform' || obj.type === 'wall' || obj.type === 'moving_h' || obj.type === 'moving_v') {
                 ctx.fillText(lbl, obj.x + 2, obj.y - 3);
             } else {
                 ctx.fillText(lbl, obj.x - 10, obj.y - 18);
@@ -409,6 +456,16 @@
         const pos = screenToMap(e.clientX - rect.left, e.clientY - rect.top);
         document.getElementById('mouse-pos').textContent = `X: ${pos.x}, Y: ${pos.y}`;
 
+        // 스폰 드래그
+        if (draggingSpawn) {
+            spawnX = pos.x;
+            spawnY = pos.y;
+            document.getElementById('spawn-x').value = spawnX;
+            document.getElementById('spawn-y').value = spawnY;
+            draw();
+            return;
+        }
+
         if (isDragging && dragObj != null) {
             objects[dragObj].x = pos.x - (dragStart.ox || 0);
             objects[dragObj].y = pos.y - (dragStart.oy || 0);
@@ -422,6 +479,15 @@
         const pos = screenToMap(e.clientX - rect.left, e.clientY - rect.top);
 
         if (currentTool === 'select') {
+            // 스폰 클릭 감지
+            if (Math.abs(pos.x - spawnX) < 20 && Math.abs(pos.y - spawnY) < 30) {
+                draggingSpawn = true;
+                selectedIdx = -1;
+                updateProps();
+                draw();
+                return;
+            }
+
             const idx = findObjectAt(pos.x, pos.y);
             if (idx >= 0) {
                 selectedIdx = idx;
@@ -451,7 +517,7 @@
         draw();
     });
 
-    canvas.addEventListener('mouseup', () => { isDragging = false; dragObj = null; });
+    canvas.addEventListener('mouseup', () => { isDragging = false; dragObj = null; draggingSpawn = false; });
 
     canvas.addEventListener('contextmenu', (e) => {
         e.preventDefault();
