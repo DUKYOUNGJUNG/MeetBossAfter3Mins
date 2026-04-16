@@ -101,9 +101,9 @@ class TutorialScene extends Phaser.Scene {
         add(1450, TUTORIAL_HEIGHT - 180, 120, 20, 0x3a506b);
         add(1450, TUTORIAL_HEIGHT - 32, 150, 32, 0x2d4059);
 
-        // 구역 3: 대시 (1600~2400)
+        // 구역 3: 대시 (1600~2400) — 갭은 캐릭터 크기 수준 (~40px)
         add(1600, TUTORIAL_HEIGHT - 32, 200, 32, 0x2d4059);
-        add(2000, TUTORIAL_HEIGHT - 32, 400, 32, 0x2d4059);
+        add(1840, TUTORIAL_HEIGHT - 32, 560, 32, 0x2d4059);
 
         // 구역 4: 점프 + 공중 대시 (2400~3200)
         add(2400, TUTORIAL_HEIGHT - 32, 200, 32, 0x2d4059);
