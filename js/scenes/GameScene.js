@@ -137,12 +137,27 @@ class GameScene extends Phaser.Scene {
         const sd = this.stageData;
         const defaultColor = sd.map.platformColor;
         const accentColor = sd.map.accentColor;
+        const letterColor = sd.map.letterColor || accentColor;
 
+        // 한글 글자 플랫폼 생성
+        if (sd.letterChar) {
+            const letterPlatforms = generateLetterPlatforms(sd.letterChar, sd.map.width);
+            letterPlatforms.forEach(p => {
+                const plat = PlayerController.addPlatform(
+                    this, this.platforms, p.x, p.y, p.w, p.h,
+                    letterColor, `letter_${this.stageId}`
+                );
+                if (plat) plat.setData('isLetter', true);
+            });
+        }
+
+        // 일반 플랫폼 배치 (게임플레이용)
         sd.platforms.forEach((p, i) => {
-            const color = p.color != null ? p.color : (i === 0 ? accentColor : defaultColor);
+            const color = p.color != null ? p.color : defaultColor;
             PlayerController.addPlatform(this, this.platforms, p.x, p.y, p.w, p.h, color, `plat_${this.stageId}`);
         });
 
+        // 벽 배치
         if (sd.walls) {
             sd.walls.forEach(w => {
                 PlayerController.addPlatform(this, this.platforms, w.x, w.y, w.w, w.h, accentColor, `plat_${this.stageId}`);
