@@ -182,6 +182,7 @@ class PlayerController {
         if (this.isDashing) {
             // 대시 중: 현재 프레임 고정 (자세 유지)
             player.anims.pause();
+            this.currentAnim = null; // 대시 끝나면 강제로 새 애니메이션 재생되도록
             return;
         } else if (!onGround) {
             anim = `jump_${dir}`;
@@ -189,6 +190,11 @@ class PlayerController {
             anim = `run_${dir}`;
         } else {
             anim = `idle_${dir}`;
+        }
+
+        // 일시정지 해제
+        if (player.anims.isPaused) {
+            player.anims.resume();
         }
 
         if (this.currentAnim !== anim) {
@@ -308,6 +314,11 @@ class PlayerController {
             this.isDashing = false;
             player.body.allowGravity = true;
             player.setAlpha(1);
+            // 대시 종료 시 속도를 일반 이동 속도로 즉시 클램프 (모멘텀 이월 방지)
+            const vx = player.body.velocity.x;
+            if (Math.abs(vx) > MOVE_SPEED) {
+                player.setVelocityX(Math.sign(vx) * MOVE_SPEED);
+            }
         });
 
         // 쿨타임 UI
