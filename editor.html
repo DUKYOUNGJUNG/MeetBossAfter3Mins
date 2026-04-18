@@ -645,7 +645,7 @@
             `            { x: ${o.x}, y: ${o.y}, w: ${o.w}, h: ${o.h}, moveType: '${o.type === 'moving_h' ? 'horizontal' : 'vertical'}', distance: ${o.distance}, speed: ${o.speed} },`
         );
         const items = objects.filter(o => o.type === 'item').map(o => `            { x: ${o.x}, y: ${o.y}, name: '${o.name}' },`);
-        const enemies = objects.filter(o => !['platform', 'wall', 'item', 'moving_h', 'moving_v'].includes(o.type)).map(o => {
+        const enemies = objects.filter(o => !['platform', 'wall', 'item', 'moving_h', 'moving_v', 'letter'].includes(o.type)).map(o => {
             const parts = [`type: '${o.type}'`, `x: ${o.x}`, `y: ${o.y}`];
             if (o.type === 'walker') parts.push(`speed: ${o.speed}`, `dir: ${o.dir}`);
             if (o.type === 'patrol') parts.push(`speed: ${o.speed}`, `minX: ${o.minX}`, `maxX: ${o.maxX}`);
@@ -734,7 +734,7 @@ ${enemies.join('\n')}
             })),
             items: objects.filter(o => o.type === 'item').map(o => ({ x: o.x, y: o.y, name: o.name || '???' })),
             itemPresets: null,
-            enemies: objects.filter(o => !['platform', 'wall', 'item', 'moving_h', 'moving_v'].includes(o.type)).map(o => {
+            enemies: objects.filter(o => !['platform', 'wall', 'item', 'moving_h', 'moving_v', 'letter'].includes(o.type)).map(o => {
                 const e = { type: o.type, x: o.x, y: o.y };
                 if (o.speed != null) e.speed = o.speed;
                 if (o.dir != null) e.dir = o.dir;
@@ -759,11 +759,12 @@ ${enemies.join('\n')}
             backgroundColor: '#1a1a2e',
             physics: { default: 'arcade', arcade: { gravity: { y: 800 }, debug: false } },
             scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-            scene: [GameScene],
+            // 씬은 auto-start 방지 위해 ready 이후 명시적 추가
         });
 
         testGame.events.once('ready', () => {
-            testGame.scene.start('GameScene', { stageId: 'test' });
+            // autoStart=true + data 인자로 stageId 전달 (auto-start의 data 누락 문제 회피)
+            testGame.scene.add('GameScene', GameScene, true, { stageId: 'test' });
         });
     }
 
