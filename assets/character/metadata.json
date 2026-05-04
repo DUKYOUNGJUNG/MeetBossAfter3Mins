@@ -1,0 +1,101 @@
+{
+  "character": {
+    "id": "2239c5a9-ee36-4423-b631-efddead2d9e3",
+    "name": "Shadow Protagonist",
+    "prompt": "Dark black silhouette character, completely black body with no visible features, LIMBO game style, simple humanoid shadow figure, minimal detail, glowing white eyes only",
+    "size": {
+      "width": 68,
+      "height": 68
+    },
+    "template_id": "mannequin",
+    "directions": 4,
+    "view": "side",
+    "created_at": "2026-04-16T13:12:15.302336+00:00"
+  },
+  "frames": {
+    "rotations": {
+      "south": "rotations/south.png",
+      "west": "rotations/west.png",
+      "east": "rotations/east.png",
+      "north": "rotations/north.png"
+    },
+    "animations": {
+      "walking-f0489b5f": {
+        "east": [
+          "animations/walking-f0489b5f/east/frame_000.png",
+          "animations/walking-f0489b5f/east/frame_001.png",
+          "animations/walking-f0489b5f/east/frame_002.png",
+          "animations/walking-f0489b5f/east/frame_003.png",
+          "animations/walking-f0489b5f/east/frame_004.png",
+          "animations/walking-f0489b5f/east/frame_005.png"
+        ],
+        "west": [
+          "animations/walking-f0489b5f/west/frame_000.png",
+          "animations/walking-f0489b5f/west/frame_001.png",
+          "animations/walking-f0489b5f/west/frame_002.png",
+          "animations/walking-f0489b5f/west/frame_003.png",
+          "animations/walking-f0489b5f/west/frame_004.png",
+          "animations/walking-f0489b5f/west/frame_005.png"
+        ]
+      },
+      "animating-9d59c905": {
+        "west": [
+          "animations/animating-9d59c905/west/frame_000.png",
+          "animations/animating-9d59c905/west/frame_001.png",
+          "animations/animating-9d59c905/west/frame_002.png",
+          "animations/animating-9d59c905/west/frame_003.png"
+        ],
+        "east": [
+          "animations/animating-9d59c905/east/frame_000.png",
+          "animations/animating-9d59c905/east/frame_001.png",
+          "animations/animating-9d59c905/east/frame_002.png",
+          "animations/animating-9d59c905/east/frame_003.png"
+        ]
+      },
+      "running-2dabfab7": {
+        "west": [
+          "animations/running-2dabfab7/west/frame_000.png",
+          "animations/running-2dabfab7/west/frame_001.png",
+          "animations/running-2dabfab7/west/frame_002.png",
+          "animations/running-2dabfab7/west/frame_003.png",
+          "animations/running-2dabfab7/west/frame_004.png",
+          "animations/running-2dabfab7/west/frame_005.png"
+        ],
+        "east": [
+          "animations/running-2dabfab7/east/frame_000.png",
+          "animations/running-2dabfab7/east/frame_001.png",
+          "animations/running-2dabfab7/east/frame_002.png",
+          "animations/running-2dabfab7/east/frame_003.png",
+          "animations/running-2dabfab7/east/frame_004.png",
+          "animations/running-2dabfab7/east/frame_005.png"
+        ]
+      },
+      "animating-4e4bceed": {
+        "west": [
+          "animations/animating-4e4bceed/west/frame_000.png",
+          "animations/animating-4e4bceed/west/frame_001.png",
+          "animations/animating-4e4bceed/west/frame_002.png",
+          "animations/animating-4e4bceed/west/frame_003.png",
+          "animations/animating-4e4bceed/west/frame_004.png",
+          "animations/animating-4e4bceed/west/frame_005.png",
+          "animations/animating-4e4bceed/west/frame_006.png",
+          "animations/animating-4e4bceed/west/frame_007.png",
+          "animations/animating-4e4bceed/west/frame_008.png"
+        ],
+        "east": [
+          "animations/animating-4e4bceed/east/frame_000.png",
+          "animations/animating-4e4bceed/east/frame_001.png",
+          "animations/animating-4e4bceed/east/frame_002.png",
+          "animations/animating-4e4bceed/east/frame_003.png",
+          "animations/animating-4e4bceed/east/frame_004.png",
+          "animations/animating-4e4bceed/east/frame_005.png",
+          "animations/animating-4e4bceed/east/frame_006.png",
+          "animations/animating-4e4bceed/east/frame_007.png",
+          "animations/animating-4e4bceed/east/frame_008.png"
+        ]
+      }
+    }
+  },
+  "export_version": "2.0",
+  "export_date": "2026-04-16T13:31:11.249067"
+}

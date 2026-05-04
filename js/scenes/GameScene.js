@@ -11,6 +11,13 @@ class GameScene extends Phaser.Scene {
 
     preload() {
         PlayerController.preloadSprites(this);
+        // 스테이지별 타일 텍스처 (있으면)
+        if (this.stageData.map.tileKey) {
+            const key = this.stageData.map.tileKey;
+            if (!this.textures.exists(key)) {
+                this.load.image(key, `assets/tiles/${key}.png`);
+            }
+        }
     }
 
     create() {
@@ -49,19 +56,19 @@ class GameScene extends Phaser.Scene {
         this.physics.add.collider(this.player, this.movingPlatforms);
 
         // 아이템
-        this.items = this.physics.add.staticGroup();
+        ItemManager.createTexture(this);
+        this.itemMgr = new ItemManager(this);
         this.collectedCount = 0;
-        this.totalItems = 5;
-        this.createItems();
-        this.physics.add.overlap(this.player, this.items, this.collectItem, null, this);
+        this.totalItems = this.itemMgr.spawnFromStage(sd, this.testMode);
+        this.physics.add.overlap(this.player, this.itemMgr.items, this.collectItem, null, this);
 
         // 적
-        this.enemies = this.physics.add.group();
-        this.projectiles = this.physics.add.group();
-        this.createEnemies();
-        this.physics.add.collider(this.enemies, this.platforms);
-        this.physics.add.overlap(this.player, this.enemies, this.onEnemyHit, null, this);
-        this.physics.add.overlap(this.player, this.projectiles, this.onEnemyHit, null, this);
+        EnemyManager.createTextures(this);
+        this.enemyMgr = new EnemyManager(this);
+        this.enemyMgr.spawnAll(sd.enemies);
+        this.physics.add.collider(this.enemyMgr.enemies, this.platforms);
+        this.physics.add.overlap(this.player, this.enemyMgr.enemies, this.onEnemyHit, null, this);
+        this.physics.add.overlap(this.player, this.enemyMgr.projectiles, this.onEnemyHit, null, this);
 
         // 타이머
         this.timeLeft = sd.timeLimit;
@@ -130,9 +137,9 @@ class GameScene extends Phaser.Scene {
 
         // UI 카메라는 게임 오브젝트 무시
         this.platforms.getChildren().forEach(p => this.uiCamera.ignore(p));
-        this.items.getChildren().forEach(i => this.uiCamera.ignore(i));
+        this.itemMgr.items.getChildren().forEach(i => this.uiCamera.ignore(i));
         this.uiCamera.ignore(this.player);
-        this.enemies.getChildren().forEach(e => this.uiCamera.ignore(e));
+        this.enemyMgr.enemies.getChildren().forEach(e => this.uiCamera.ignore(e));
 
         // 터치 컨트롤
         const touchElements = this.pc.createTouchControls(800, 600);
@@ -144,32 +151,36 @@ class GameScene extends Phaser.Scene {
         const sd = this.stageData;
         const defaultColor = sd.map.platformColor;
         const accentColor = sd.map.accentColor;
-        const letterColor = sd.map.letterColor || accentColor;
+        const tileKey = sd.map.tileKey;
+        const useTexture = tileKey && this.textures.exists(tileKey);
 
-        // 한글 글자 플랫폼 생성
-        if (sd.letterChar) {
-            const letterPlatforms = generateLetterPlatforms(sd.letterChar, sd.map.width);
-            letterPlatforms.forEach(p => {
-                const plat = PlayerController.addPlatform(
-                    this, this.platforms, p.x, p.y, p.w, p.h,
-                    letterColor, `letter_${this.stageId}`
-                );
-                if (plat) plat.setData('isLetter', true);
-            });
-        }
+        const addPlat = (x, y, w, h, color) => {
+            if (useTexture) {
+                // 타일 텍스처를 plat 영역에 자동 반복
+                const ts = this.add.tileSprite(x + w / 2, y + h / 2, w, h, tileKey);
+                this.physics.add.existing(ts, true);
+                this.platforms.add(ts);
+                return ts;
+            }
+            return PlayerController.addPlatform(this, this.platforms, x, y, w, h, color, `plat_${this.stageId}`);
+        };
 
-        // 일반 플랫폼 배치 (게임플레이용)
-        sd.platforms.forEach((p, i) => {
+        // 일반 플랫폼
+        sd.platforms.forEach((p) => {
             const color = p.color != null ? p.color : defaultColor;
-            PlayerController.addPlatform(this, this.platforms, p.x, p.y, p.w, p.h, color, `plat_${this.stageId}`);
+            addPlat(p.x, p.y, p.w, p.h, color);
         });
 
-        // 벽 배치
+        // 벽
         if (sd.walls) {
-            sd.walls.forEach(w => {
-                PlayerController.addPlatform(this, this.platforms, w.x, w.y, w.w, w.h, accentColor, `plat_${this.stageId}`);
-            });
+            sd.walls.forEach(w => addPlat(w.x, w.y, w.w, w.h, accentColor));
         }
+
+        // 좌우 경계 벽 (모든 맵 공통 — 떨어져 죽는 것 방지). 배경색과 동일하게 안 보이게
+        const BOUND_W = 10;
+        const bgInt = parseInt(sd.map.backgroundColor.replace('#', ''), 16);
+        PlayerController.addPlatform(this, this.platforms, 0, 0, BOUND_W, sd.map.height, bgInt, 'bound_l');
+        PlayerController.addPlatform(this, this.platforms, sd.map.width - BOUND_W, 0, BOUND_W, sd.map.height, bgInt, 'bound_r');
     }
 
     createMovingPlatforms() {
@@ -197,12 +208,16 @@ class GameScene extends Phaser.Scene {
             plat.setImmovable(true);
             plat.body.allowGravity = false;
 
+            const speed = mp.speed || 50;
             plat.setData('moveType', mp.moveType);
             plat.setData('startX', mp.x + w / 2);
             plat.setData('startY', mp.y + h / 2);
             plat.setData('distance', mp.distance || 200);
-            plat.setData('speed', mp.speed || 50);
-            plat.setData('dir', 1);
+            plat.setData('speed', speed);
+
+            // 초기 velocity (시작은 +방향)
+            if (mp.moveType === 'horizontal') plat.setVelocityX(speed);
+            else if (mp.moveType === 'vertical') plat.setVelocityY(speed);
 
             if (this.uiCamera) this.uiCamera.ignore(plat);
         });
@@ -219,276 +234,13 @@ class GameScene extends Phaser.Scene {
             const dist = plat.getData('distance');
             const speed = plat.getData('speed');
 
+            // setVelocity 기반 왕복: 데이터 speed = px/s, distance = 진폭
             if (moveType === 'horizontal') {
-                const t = Math.sin(time * speed / 10000 * Math.PI) * dist;
-                plat.x = startX + t;
-                plat.body.velocity.x = Math.cos(time * speed / 10000 * Math.PI) * dist * speed / 10000 * Math.PI;
+                if (plat.x >= startX + dist && plat.body.velocity.x > 0) plat.setVelocityX(-speed);
+                else if (plat.x <= startX - dist && plat.body.velocity.x < 0) plat.setVelocityX(speed);
             } else if (moveType === 'vertical') {
-                const t = Math.sin(time * speed / 10000 * Math.PI) * dist;
-                plat.y = startY + t;
-                plat.body.velocity.y = Math.cos(time * speed / 10000 * Math.PI) * dist * speed / 10000 * Math.PI;
-            }
-
-            plat.body.updateFromGameObject();
-        });
-    }
-
-    createItems() {
-        const sd = this.stageData;
-
-        let itemPositions;
-        if (sd.itemPresets && sd.itemPresets.length > 0) {
-            const presetIndex = Phaser.Math.Between(0, sd.itemPresets.length - 1);
-            itemPositions = sd.itemPresets[presetIndex];
-        } else {
-            itemPositions = sd.items;
-        }
-
-        if (!this.textures.exists('item')) {
-            const ig = this.add.graphics();
-            ig.fillStyle(0xffd700);
-            ig.fillCircle(12, 12, 12);
-            ig.fillStyle(0xffea00);
-            ig.fillCircle(12, 12, 8);
-            ig.generateTexture('item', 24, 24);
-            ig.destroy();
-        }
-
-        if (this.testMode) {
-            const spawnX = sd.spawn.x;
-            const spawnY = sd.spawn.y;
-            itemPositions = itemPositions.map((p, i) => ({
-                ...p,
-                x: spawnX + 50 + i * 30,
-                y: spawnY - 20
-            }));
-        }
-
-        const itemNames = sd.itemNames || itemPositions.map(p => p.name || '???');
-
-        itemPositions.forEach((pos, idx) => {
-            const item = this.items.create(pos.x, pos.y, 'item');
-            item.setDisplaySize(24, 24);
-            item.refreshBody();
-            item.setData('itemName', itemNames[idx] || pos.name || '???');
-            this.tweens.add({
-                targets: item, alpha: 0.5,
-                duration: 600, yoyo: true, repeat: -1
-            });
-            if (this.uiCamera) this.uiCamera.ignore(item);
-        });
-    }
-
-    createEnemies() {
-        const sd = this.stageData;
-        if (!sd.enemies || sd.enemies.length === 0) return;
-
-        // 적 텍스처
-        if (!this.textures.exists('enemy_walk')) {
-            const g = this.add.graphics();
-            g.fillStyle(0xff4444);
-            g.fillRect(0, 0, 28, 28);
-            g.fillStyle(0xcc0000);
-            g.fillRect(4, 4, 20, 20);
-            g.fillStyle(0xffffff);
-            g.fillRect(8, 8, 6, 6);
-            g.fillRect(16, 8, 6, 6);
-            g.generateTexture('enemy_walk', 28, 28);
-            g.destroy();
-        }
-        if (!this.textures.exists('enemy_jump')) {
-            const g = this.add.graphics();
-            g.fillStyle(0xff8800);
-            g.fillRect(0, 0, 24, 32);
-            g.fillStyle(0xcc6600);
-            g.fillRect(3, 3, 18, 26);
-            g.fillStyle(0xffffff);
-            g.fillRect(6, 8, 5, 5);
-            g.fillRect(13, 8, 5, 5);
-            g.generateTexture('enemy_jump', 24, 32);
-            g.destroy();
-        }
-        if (!this.textures.exists('enemy_shooter')) {
-            const g = this.add.graphics();
-            g.fillStyle(0x8844ff);
-            g.fillRect(0, 0, 30, 30);
-            g.fillStyle(0x6622cc);
-            g.fillRect(4, 4, 22, 22);
-            g.fillStyle(0xffffff);
-            g.fillRect(8, 8, 6, 6);
-            g.fillRect(18, 8, 6, 6);
-            g.generateTexture('enemy_shooter', 30, 30);
-            g.destroy();
-        }
-        if (!this.textures.exists('projectile')) {
-            const g = this.add.graphics();
-            g.fillStyle(0xff00ff);
-            g.fillCircle(5, 5, 5);
-            g.generateTexture('projectile', 10, 10);
-            g.destroy();
-        }
-        if (!this.textures.exists('falling_obj')) {
-            const g = this.add.graphics();
-            g.fillStyle(0x888888);
-            g.fillTriangle(10, 0, 0, 20, 20, 20);
-            g.generateTexture('falling_obj', 20, 20);
-            g.destroy();
-        }
-        if (!this.textures.exists('spike')) {
-            const g = this.add.graphics();
-            g.fillStyle(0xaa4444);
-            g.fillTriangle(12, 0, 0, 24, 24, 24);
-            g.generateTexture('spike', 24, 24);
-            g.destroy();
-        }
-
-        sd.enemies.forEach(eData => {
-            let enemy;
-            switch (eData.type) {
-                case 'walker':
-                    enemy = this.enemies.create(eData.x, eData.y, 'enemy_walk');
-                    enemy.setData('type', 'walker');
-                    enemy.setData('speed', eData.speed || 60);
-                    enemy.setData('dir', eData.dir || 1);
-                    enemy.body.setSize(28, 28);
-                    enemy.setVelocityX((eData.speed || 60) * (eData.dir || 1));
-                    break;
-
-                case 'patrol':
-                    enemy = this.enemies.create(eData.x, eData.y, 'enemy_walk');
-                    enemy.setData('type', 'patrol');
-                    enemy.setData('speed', eData.speed || 80);
-                    enemy.setData('minX', eData.minX);
-                    enemy.setData('maxX', eData.maxX);
-                    enemy.setData('dir', 1);
-                    enemy.body.setSize(28, 28);
-                    enemy.setVelocityX(eData.speed || 80);
-                    break;
-
-                case 'jumper':
-                    enemy = this.enemies.create(eData.x, eData.y, 'enemy_jump');
-                    enemy.setData('type', 'jumper');
-                    enemy.setData('range', eData.range || 200);
-                    enemy.setData('baseY', eData.y);
-                    enemy.body.setSize(24, 32);
-                    enemy.body.allowGravity = true;
-                    break;
-
-                case 'shooter':
-                    enemy = this.enemies.create(eData.x, eData.y, 'enemy_shooter');
-                    enemy.setData('type', 'shooter');
-                    enemy.setData('interval', eData.interval || 2000);
-                    enemy.setData('lastShot', 0);
-                    enemy.body.setSize(30, 30);
-                    enemy.body.allowGravity = false;
-                    enemy.body.immovable = true;
-                    enemy.body.moves = false;
-                    break;
-
-                case 'falling':
-                    enemy = this.enemies.create(eData.x, eData.y, 'falling_obj');
-                    enemy.setData('type', 'falling');
-                    enemy.setData('triggerX', eData.triggerX || eData.x);
-                    enemy.setData('triggered', false);
-                    enemy.body.allowGravity = false;
-                    enemy.body.setSize(20, 20);
-                    break;
-
-                case 'spike':
-                    enemy = this.enemies.create(eData.x, eData.y, 'spike');
-                    enemy.setData('type', 'spike');
-                    enemy.setData('interval', eData.interval || 3000);
-                    enemy.setData('baseY', eData.y);
-                    enemy.setData('active', false);
-                    enemy.body.allowGravity = false;
-                    enemy.body.immovable = true;
-                    enemy.body.moves = false;
-                    enemy.body.setSize(24, 24);
-                    enemy.setAlpha(0.3);
-                    break;
-            }
-
-            if (enemy && this.uiCamera) {
-                this.uiCamera.ignore(enemy);
-            }
-        });
-    }
-
-    updateEnemies(time) {
-        this.enemies.getChildren().forEach(enemy => {
-            const type = enemy.getData('type');
-
-            switch (type) {
-                case 'patrol': {
-                    const minX = enemy.getData('minX');
-                    const maxX = enemy.getData('maxX');
-                    const speed = enemy.getData('speed');
-                    if (enemy.x >= maxX) {
-                        enemy.setVelocityX(-speed);
-                        enemy.setFlipX(true);
-                    } else if (enemy.x <= minX) {
-                        enemy.setVelocityX(speed);
-                        enemy.setFlipX(false);
-                    }
-                    break;
-                }
-
-                case 'jumper': {
-                    const range = enemy.getData('range');
-                    const dist = Math.abs(this.player.x - enemy.x);
-                    const onGround = enemy.body.touching.down || enemy.body.blocked.down;
-                    if (dist < range && onGround) {
-                        enemy.setVelocityY(-350);
-                    }
-                    break;
-                }
-
-                case 'shooter': {
-                    const interval = enemy.getData('interval');
-                    const lastShot = enemy.getData('lastShot');
-                    if (time - lastShot > interval) {
-                        enemy.setData('lastShot', time);
-                        const dir = this.player.x < enemy.x ? -1 : 1;
-                        const proj = this.projectiles.create(enemy.x + dir * 20, enemy.y, 'projectile');
-                        proj.setVelocityX(200 * dir);
-                        proj.body.allowGravity = false;
-                        if (this.uiCamera) this.uiCamera.ignore(proj);
-                        this.time.delayedCall(3000, () => { if (proj.active) proj.destroy(); });
-                    }
-                    break;
-                }
-
-                case 'falling': {
-                    if (!enemy.getData('triggered')) {
-                        const triggerX = enemy.getData('triggerX');
-                        if (Math.abs(this.player.x - triggerX) < 80) {
-                            enemy.setData('triggered', true);
-                            enemy.body.allowGravity = true;
-                            this.time.delayedCall(3000, () => { if (enemy.active) enemy.destroy(); });
-                        }
-                    }
-                    break;
-                }
-
-                case 'spike': {
-                    const interval = enemy.getData('interval');
-                    const phase = time % interval;
-                    const baseY = enemy.getData('baseY');
-                    if (phase < interval * 0.3) {
-                        if (!enemy.getData('active')) {
-                            enemy.setData('active', true);
-                            enemy.setAlpha(1);
-                            enemy.setY(baseY - 20);
-                        }
-                    } else if (phase > interval * 0.7) {
-                        if (enemy.getData('active')) {
-                            enemy.setData('active', false);
-                            enemy.setAlpha(0.3);
-                            enemy.setY(baseY);
-                        }
-                    }
-                    break;
-                }
+                if (plat.y >= startY + dist && plat.body.velocity.y > 0) plat.setVelocityY(-speed);
+                else if (plat.y <= startY - dist && plat.body.velocity.y < 0) plat.setVelocityY(speed);
             }
         });
     }
@@ -497,10 +249,7 @@ class GameScene extends Phaser.Scene {
         if (this.isRespawning) return;
         this.takeDamage();
 
-        if (enemy.getData && !enemy.getData('type')) {
-            enemy.destroy();
-        }
-        if (this.projectiles.contains(enemy)) {
+        if (this.enemyMgr.projectiles.contains(enemy)) {
             enemy.destroy();
         }
     }
@@ -588,8 +337,20 @@ class GameScene extends Phaser.Scene {
             this.pc.updatePhysics(time, delta);
         }
 
-        this.updateEnemies(time);
+        this.enemyMgr.update(time, this.player);
         this.updateMovingPlatforms(time);
+
+        // 무빙 플랫폼 위 플레이어 캐리 (Phaser arcade 한계 보완)
+        if (!this.isRespawning && (this.player.body.touching.down || this.player.body.blocked.down)) {
+            this.movingPlatforms.getChildren().forEach(plat => {
+                const xOverlap = Math.abs(this.player.x - plat.x) < (plat.body.width + this.player.body.width) / 2;
+                const yClose = Math.abs(this.player.body.bottom - plat.body.top) < 5;
+                if (xOverlap && yClose) {
+                    this.player.x += plat.body.deltaX();
+                    this.player.y += plat.body.deltaY();
+                }
+            });
+        }
 
         // 낙사 감지
         if (!this.isRespawning && this.player.y > this.stageData.map.height + 50) {

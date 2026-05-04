@@ -32,8 +32,7 @@
 
         <h3>범례</h3>
         <div class="legend">
-            <div class="legend-item"><div class="legend-dot" style="background:#A08860"></div> 글자 플랫폼</div>
-            <div class="legend-item"><div class="legend-dot" style="background:#8B7355"></div> 게임 플랫폼</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#8B7355"></div> 플랫폼</div>
             <div class="legend-item"><div class="legend-dot" style="background:#00ff88"></div> 스폰</div>
             <div class="legend-item"><div class="legend-dot" style="background:#ffd700"></div> 아이템</div>
             <div class="legend-item"><div class="legend-dot" style="background:#00aaff;opacity:0.3"></div> 점프 도달 범위</div>
@@ -63,9 +62,12 @@
     </div>
 
     <!-- 게임 데이터 로드 -->
-    <script src="js/data/HangulMaps.js"></script>
-    <script src="js/data/StageData.js"></script>
-    <script src="js/data/StageProgress.js"></script>
+    <!-- 캐시 버스터: 코드 변경 시 sed -i '' "s/?v=N/?v=N+1/g" 형식으로 모든 html 일괄 bump -->
+    <script src="js/data/stages/normal.js?v=18"></script>
+    <script src="js/data/stages/red.js?v=18"></script>
+    <script src="js/data/stages/true_red.js?v=18"></script>
+    <script src="js/data/StageData.js?v=18"></script>
+    <script src="js/data/StageProgress.js?v=18"></script>
     <script>
     // ==========================================
     // 물리 상수
@@ -85,24 +87,18 @@
     };
 
     // ==========================================
-    // 플랫폼 수집 (글자 + 게임플레이)
+    // 플랫폼 수집
     // ==========================================
     function getAllPlatforms(stageId) {
         const sd = STAGE_DATA[stageId];
         const platforms = [];
 
-        // 글자 플랫폼
-        if (sd.letterChar) {
-            const letterPlats = generateLetterPlatforms(sd.letterChar, sd.map.width);
-            letterPlats.forEach(p => platforms.push({ ...p, isLetter: true }));
-        }
-
         // 게임플레이 플랫폼
-        sd.platforms.forEach(p => platforms.push({ ...p, isLetter: false }));
+        sd.platforms.forEach(p => platforms.push({ ...p }));
 
         // 벽 (위에 올라설 수 있는 구조물)
         if (sd.walls) {
-            sd.walls.forEach(w => platforms.push({ ...w, isLetter: false, isWall: true }));
+            sd.walls.forEach(w => platforms.push({ ...w, isWall: true }));
         }
 
         return platforms;
@@ -329,10 +325,7 @@
             stageId,
             stageName: `${sd.era} - ${sd.name}`,
             mapSize: { w: sd.map.width, h: sd.map.height },
-            letterChar: sd.letterChar || null,
             platformCount: platforms.length,
-            letterPlatformCount: platforms.filter(p => p.isLetter).length,
-            gamePlatformCount: platforms.filter(p => !p.isLetter).length,
             spawnIndex: spawnIdx,
             itemResults,
             allReachable: itemResults.every(r => r.reachable),
@@ -415,14 +408,8 @@
         });
 
         // 플랫폼 그리기
-        platforms.forEach((p, i) => {
-            if (p.isLetter) {
-                ctx.fillStyle = '#A08860';
-            } else if (p.isWall) {
-                ctx.fillStyle = '#6B4226';
-            } else {
-                ctx.fillStyle = '#8B7355';
-            }
+        platforms.forEach((p) => {
+            ctx.fillStyle = p.isWall ? '#6B4226' : '#8B7355';
             ctx.fillRect(tx(p.x), ty(p.y), tw(p.w), Math.max(th(p.h), 2));
         });
 
@@ -465,12 +452,6 @@
         ctx.font = '10px monospace';
         ctx.fillText('S', tx(sd.spawn.x) - 3, ty(sd.spawn.y) - 8);
 
-        // 글자 표시 (좌상단)
-        if (analysis.letterChar) {
-            ctx.fillStyle = '#ffffff22';
-            ctx.font = '24px monospace';
-            ctx.fillText(analysis.letterChar, tx(10), ty(40));
-        }
     }
 
     // ==========================================
@@ -507,9 +488,8 @@
         diffEl.innerHTML = `
             <div class="result ${diffStatus}">
                 <div class="metric"><span class="label">스테이지</span><span class="value">${analysis.stageName}</span></div>
-                <div class="metric"><span class="label">글자</span><span class="value">${analysis.letterChar || '-'}</span></div>
                 <div class="metric"><span class="label">맵 크기</span><span class="value">${analysis.mapSize.w} x ${analysis.mapSize.h}</span></div>
-                <div class="metric"><span class="label">플랫폼</span><span class="value">${analysis.platformCount}개 (글자 ${analysis.letterPlatformCount} + 게임 ${analysis.gamePlatformCount})</span></div>
+                <div class="metric"><span class="label">플랫폼</span><span class="value">${analysis.platformCount}개</span></div>
                 <div class="metric"><span class="label">아이템 도달</span><span class="value">${analysis.reachableCount} / ${analysis.itemResults.length}</span></div>
                 <div class="metric"><span class="label">적</span><span class="value">${analysis.enemyTotal}마리 ${Object.entries(analysis.enemyCounts).map(([k,v])=>`${k}:${v}`).join(' ')}</span></div>
                 <div class="metric"><span class="label">판정</span><span class="value">${!allReach ? '\u274C 도달 불가 아이템 있음' : analysis.timeMargin < 20 ? '\u26A0 시간 빠듯' : '\u2705 클리어 가능'}</span></div>
@@ -527,10 +507,9 @@
         ['normal', 'red', 'true_red'].forEach(route => {
             STAGE_ORDER[route].forEach(stageId => {
                 const sd = STAGE_DATA[stageId];
-                const char = HANGUL_STAGE_CHARS[stageId] || '';
                 const opt = document.createElement('option');
                 opt.value = stageId;
-                opt.textContent = `[${char}] ${sd.era} - ${sd.name} (${stageId})`;
+                opt.textContent = `${sd.era} - ${sd.name} (${stageId})`;
                 select.appendChild(opt);
             });
         });

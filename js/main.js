@@ -8,6 +8,7 @@ const config = {
     height: GAME_HEIGHT,
     parent: 'game-container',
     backgroundColor: '#1a1a2e',
+    pixelArt: true,  // 픽셀아트 텍스처 NEAREST 필터 (스케일 시 흐려짐 방지)
     physics: {
         default: 'arcade',
         arcade: {

@@ -49,6 +49,8 @@ class PlayerController {
     initState() {
         this.isDashing = false;
         this.dashCooldownReady = true;
+        this.isDashSealed = false;  // sealer 적 반경 내 진입 시 true
+        this._wasSealed = false;
         this.lastDirection = 1;
         this.dashTime = 0;
 
@@ -275,6 +277,7 @@ class PlayerController {
     // 대시 실행
     doDash() {
         if (!this.options.canDash) return;
+        if (this.isDashSealed) return;  // sealer 봉인 시 사용 불가
         if (!this.dashCooldownReady || this.isDashing) return;
 
         const scene = this.scene;
@@ -324,7 +327,7 @@ class PlayerController {
         // 쿨타임 UI
         if (this.dashCooldownBar) {
             this.dashCooldownBar.setScale(0, 1);
-            this.dashCooldownText.setText('\uCF00\uD0C0\uC784').setAlpha(1);
+            this.dashCooldownText.setText('\uCFE8\uD0C0\uC784').setAlpha(1);
             scene.tweens.add({
                 targets: this.dashCooldownBar,
                 scaleX: 1, duration: DASH_COOLDOWN, ease: 'Linear',
@@ -349,6 +352,16 @@ class PlayerController {
         const onGround = player.body.touching.down || player.body.blocked.down;
 
         this.checkTouchInput();
+
+        // 대시 봉인 UI 토글 (sealer 반경 진입/이탈 감지)
+        if (this.dashCooldownText) {
+            if (this.isDashSealed && !this._wasSealed) {
+                this.dashCooldownText.setText('봉인').setColor('#aa66ff').setAlpha(1);
+            } else if (!this.isDashSealed && this._wasSealed) {
+                this.dashCooldownText.setAlpha(0).setColor('#ffffff');
+            }
+        }
+        this._wasSealed = this.isDashSealed;
 
         // 대시 중에는 입력만 기록하고 리턴
         if (this.isDashing) {
