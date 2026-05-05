@@ -201,6 +201,8 @@ class EnemyManager {
                     enemy = this.enemies.create(eData.x, eData.y, 'enemy_chaser');
                     enemy.setData('type', 'chaser');
                     enemy.setData('speed', eData.speed || 100);
+                    enemy.setData('spawnX', eData.x);
+                    enemy.setData('spawnY', eData.y);
                     enemy.body.setSize(26, 28);
                     break;
             }
@@ -381,5 +383,15 @@ class EnemyManager {
 
         // 대시 봉인 상태 일괄 적용
         if (this.scene.pc) this.scene.pc.isDashSealed = inSealRange;
+    }
+
+    // 플레이어 피격 시 호출 — 추적형 적을 spawn 위치로 복귀
+    resetChasers() {
+        this.enemies.getChildren().forEach(enemy => {
+            if (enemy.getData('type') === 'chaser') {
+                enemy.setPosition(enemy.getData('spawnX'), enemy.getData('spawnY'));
+                enemy.setVelocity(0, 0);
+            }
+        });
     }
 }

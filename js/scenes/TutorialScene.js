@@ -150,6 +150,7 @@ class TutorialScene extends Phaser.Scene {
         const playerKey = this.textures.exists('idle_east_0') ? 'idle_east_0' : 'tut_player';
         this.player = this.physics.add.sprite(floor.spawnX, floor.spawnY, playerKey);
         this.player.setDisplaySize(PLAYER_WIDTH, PLAYER_HEIGHT);
+        this.player.body.setSize(PLAYER_WIDTH, PLAYER_HEIGHT);
         this.player.setBounce(0);
         this.player.setMaxVelocity(MOVE_SPEED, 900);
         this.player.setCollideWorldBounds(true);

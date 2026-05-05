@@ -471,7 +471,7 @@ class StageSelectScene extends Phaser.Scene {
                     onComplete: () => {
                         this.cameras.main.fadeOut(500, 0, 0, 0);
                         this.time.delayedCall(500, () => {
-                            this.scene.start('GameScene', { stageId: stageId, testMode: this._testMode });
+                            this.scene.start('GameScene', { stageId: stageId, testMode: this._testMode, presetIndex: finalIndex });
                         });
                     }
                 });

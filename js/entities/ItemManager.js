@@ -23,11 +23,14 @@ class ItemManager {
 
     // 스테이지 데이터로부터 아이템 배치
     // testMode: true면 스폰 위치 근처에 한 줄로 배치
-    spawnFromStage(stageData, testMode = false) {
+    // presetIndex: itemPresets 강제 인덱스 (디버그/룰렛 결과). null이면 랜덤
+    spawnFromStage(stageData, testMode = false, presetIndex = null) {
         let itemPositions;
         if (stageData.itemPresets && stageData.itemPresets.length > 0) {
-            const presetIndex = Phaser.Math.Between(0, stageData.itemPresets.length - 1);
-            itemPositions = stageData.itemPresets[presetIndex];
+            const idx = presetIndex != null
+                ? presetIndex
+                : Phaser.Math.Between(0, stageData.itemPresets.length - 1);
+            itemPositions = stageData.itemPresets[idx];
         } else {
             itemPositions = stageData.items;
         }

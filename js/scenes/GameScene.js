@@ -7,6 +7,8 @@ class GameScene extends Phaser.Scene {
         this.stageId = data && data.stageId ? data.stageId : 'normal_1';
         this.stageData = STAGE_DATA[this.stageId];
         this.testMode = data && data.testMode ? true : false;
+        // 디버그/룰렛 — itemPresets 인덱스 강제 (없으면 ItemManager가 랜덤 선택)
+        this.presetIndex = data && data.presetIndex != null ? data.presetIndex : null;
     }
 
     preload() {
@@ -41,6 +43,7 @@ class GameScene extends Phaser.Scene {
         const playerKey = this.textures.exists('idle_east_0') ? 'idle_east_0' : 'player';
         this.player = this.physics.add.sprite(sd.spawn.x, sd.spawn.y, playerKey);
         this.player.setDisplaySize(PLAYER_WIDTH, PLAYER_HEIGHT);
+        this.player.body.setSize(PLAYER_WIDTH, PLAYER_HEIGHT);
         this.player.setBounce(0);
         this.player.setMaxVelocity(MOVE_SPEED, 900);
 
@@ -59,7 +62,13 @@ class GameScene extends Phaser.Scene {
         ItemManager.createTexture(this);
         this.itemMgr = new ItemManager(this);
         this.collectedCount = 0;
-        this.totalItems = this.itemMgr.spawnFromStage(sd, this.testMode);
+        // itemPresets 인덱스 결정 (디버그로 지정 안 됐으면 랜덤)
+        if (sd.itemPresets && sd.itemPresets.length > 0) {
+            this.currentPreset = this.presetIndex != null
+                ? this.presetIndex
+                : Phaser.Math.Between(0, sd.itemPresets.length - 1);
+        }
+        this.totalItems = this.itemMgr.spawnFromStage(sd, this.testMode, this.currentPreset);
         this.physics.add.overlap(this.player, this.itemMgr.items, this.collectItem, null, this);
 
         // 적
@@ -81,6 +90,14 @@ class GameScene extends Phaser.Scene {
 
         // 키보드
         this.pc.setupKeyboard();
+
+        // 디버그: V키로 다음 변주(itemPresets)로 씬 재시작
+        if (sd.itemPresets && sd.itemPresets.length > 0) {
+            this.input.keyboard.on('keydown-V', () => {
+                const next = ((this.currentPreset || 0) + 1) % sd.itemPresets.length;
+                this.scene.restart({ stageId: this.stageId, testMode: this.testMode, presetIndex: next });
+            });
+        }
 
         // 카메라
         this.cameras.main.setBounds(0, 0, mapW, mapH);
@@ -124,8 +141,18 @@ class GameScene extends Phaser.Scene {
             fontSize: '14px', fontFamily: 'monospace', color: '#666666'
         }).setOrigin(1, 0);
 
+        // 변주 인디케이터 (디버그) — itemPresets 있을 때만
+        const uiItems = [this.timerText, stageInfo, versionText, this.itemText, livesText];
+        if (sd.itemPresets && sd.itemPresets.length > 0) {
+            const varText = this.add.text(784, 36, `[V] 변주 ${this.currentPreset + 1}/${sd.itemPresets.length}`, {
+                fontSize: '12px', fontFamily: 'monospace', color: '#aa66ff'
+            }).setOrigin(1, 0);
+            uiItems.push(varText);
+            this.cameras.main.ignore(varText);
+        }
+
         // UI 컨테이너
-        this.uiLayer.add([this.timerText, stageInfo, versionText, this.itemText, livesText]);
+        this.uiLayer.add(uiItems);
 
         // 메인 카메라는 UI 무시
         this.cameras.main.ignore(this.uiLayer);
@@ -247,6 +274,7 @@ class GameScene extends Phaser.Scene {
 
     onEnemyHit(player, enemy) {
         if (this.isRespawning) return;
+        if (enemy.getData && enemy.getData('type') === 'sealer') return;  // sealer는 봉인만, 데미지 없음
         this.takeDamage();
 
         if (this.enemyMgr.projectiles.contains(enemy)) {
@@ -448,6 +476,7 @@ class GameScene extends Phaser.Scene {
         this.player.setPosition(sd.spawn.x, sd.spawn.y);
         this.player.setVelocity(0, 0);
         this.pc.resetDash();
+        this.enemyMgr.resetChasers();
 
         // 무적 (깜빡임)
         this.player.setAlpha(0.5);

@@ -38,6 +38,7 @@ class BossScene extends Phaser.Scene {
         const playerKey = this.textures.exists('idle_east_0') ? 'idle_east_0' : 'player';
         this.player = this.physics.add.sprite(100, BOSS_H - 80, playerKey);
         this.player.setDisplaySize(PLAYER_WIDTH, PLAYER_HEIGHT);
+        this.player.body.setSize(PLAYER_WIDTH, PLAYER_HEIGHT);
         this.player.setCollideWorldBounds(true);
         this.player.setBounce(0);
         this.player.setMaxVelocity(MOVE_SPEED, 900);
